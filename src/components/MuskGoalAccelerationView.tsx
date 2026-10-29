@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   AcceleratedGoal,
   MuskGoalMilestone,
   ProjectCategory,
   DailyLog,
   PlanActualRecord,
+  GoalConsultationMessage,
+  GoalOptimalArrangement,
 } from '../types';
 import { CATEGORIES, CategoryItem } from '../utils/categories';
 import {
   generateMuskBreakdown,
   auditMuskGoalSupervision,
+  streamGoalConsultationChat,
+  requestGoalOptimalArrangement,
   MuskBreakdownResponse,
   MuskSupervisionResponse,
 } from '../services/api';
@@ -36,6 +40,16 @@ import {
   HelpCircle,
   Activity,
   ArrowRight,
+  MessageSquareText,
+  Send,
+  Mic,
+  MicOff,
+  Wand2,
+  ListChecks,
+  Calendar,
+  Check,
+  X,
+  Bot,
 } from 'lucide-react';
 
 interface Props {
@@ -83,6 +97,221 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
   const [auditingGoal, setAuditingGoal] = useState<AcceleratedGoal | null>(null);
   const [isAuditing, setIsAuditing] = useState(false);
   const [supervisionResult, setSupervisionResult] = useState<MuskSupervisionResponse | null>(null);
+
+  // AI Coach Goal Consultation & Optimal Arrangement State
+  const [isConsultModalOpen, setIsConsultModalOpen] = useState(false);
+  const [consultingGoal, setConsultingGoal] = useState<AcceleratedGoal | null>(null);
+  const [consultTab, setConsultTab] = useState<'dialogue' | 'optimal_plan'>('dialogue');
+  const [consultMessages, setConsultMessages] = useState<GoalConsultationMessage[]>([]);
+  const [consultInput, setConsultInput] = useState('');
+  const [isConsultStreaming, setIsConsultStreaming] = useState(false);
+  const [isGeneratingOptimalPlan, setIsGeneratingOptimalPlan] = useState(false);
+  const [optimalPlan, setOptimalPlan] = useState<GoalOptimalArrangement | null>(null);
+  const [isConsultListening, setIsConsultListening] = useState(false);
+  const [consultApplyToast, setConsultApplyToast] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (isConsultModalOpen && consultTab === 'dialogue') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [consultMessages, isConsultModalOpen, consultTab]);
+
+  // Open Consultation Modal
+  const handleOpenConsultation = (goal: AcceleratedGoal) => {
+    setConsultingGoal(goal);
+    setOptimalPlan(goal.lastOptimalArrangement || null);
+    setConsultApplyToast(null);
+
+    if (goal.consultationHistory && goal.consultationHistory.length > 0) {
+      setConsultMessages(goal.consultationHistory);
+    } else {
+      setConsultMessages([
+        {
+          id: 'init-' + Date.now(),
+          role: 'assistant',
+          content: `### 🎯 目标加速诊断已接入：【${goal.title}】\n\n你好！我是你的第一性原理与战略破局教练。\n\n针对这项战役，你的核心使命是将 5 年愿景**倒逼到 1 年内极限突破**。\n- **1年倒逼指标**：\`${goal.oneYearTarget}\`\n- **当前航向评分**：\`${goal.supervision?.velocityScore || 85} / 100\`\n- **当前限速瓶颈**：\`${goal.firstPrinciples?.coreBottleneck || '尚未穿透'}\`\n\n请告诉我：你最近推进时感觉最费劲、最犹豫、或者时间被消耗在什么环节？我来帮你**穿透假努力，并做出最高效的最优推进安排**！`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    }
+
+    setConsultTab(goal.lastOptimalArrangement ? 'optimal_plan' : 'dialogue');
+    setIsConsultModalOpen(true);
+  };
+
+  // Send message in consultation chat (Streaming)
+  const handleSendConsultMessage = async (customText?: string) => {
+    const textToSend = (customText !== undefined ? customText : consultInput).trim();
+    if (!textToSend || !consultingGoal || isConsultStreaming) return;
+
+    const userMsg: GoalConsultationMessage = {
+      id: 'user-' + Date.now(),
+      role: 'user',
+      content: textToSend,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    const newHistory = [...consultMessages, userMsg];
+    setConsultMessages(newHistory);
+    setConsultInput('');
+    setIsConsultStreaming(true);
+
+    const assistantMsgId = 'coach-' + Date.now();
+    let accumulatedText = '';
+
+    setConsultMessages((prev) => [
+      ...prev,
+      {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+
+    await streamGoalConsultationChat(
+      consultingGoal,
+      newHistory.map((m) => ({ role: m.role, content: m.content })),
+      {
+        recentLogs: recentLogs.slice(0, 3),
+        planActualRecords: planActualRecords.slice(0, 3),
+      },
+      (chunkText) => {
+        accumulatedText += chunkText;
+        setConsultMessages((prev) =>
+          prev.map((m) => (m.id === assistantMsgId ? { ...m, content: accumulatedText } : m))
+        );
+      },
+      () => {
+        setIsConsultStreaming(false);
+        const finalHistory: GoalConsultationMessage[] = [
+          ...newHistory,
+          {
+            id: assistantMsgId,
+            role: 'assistant',
+            content: accumulatedText,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ];
+        const updated: AcceleratedGoal = {
+          ...consultingGoal,
+          consultationHistory: finalHistory,
+          updatedAt: new Date().toISOString(),
+        };
+        setConsultingGoal(updated);
+        onUpdateGoal(updated);
+      },
+      (err) => {
+        console.error('Consultation stream failed:', err);
+        setIsConsultStreaming(false);
+      }
+    );
+  };
+
+  // Generate Optimal Arrangement for Goal
+  const handleGenerateOptimalPlan = async () => {
+    if (!consultingGoal) return;
+    setIsGeneratingOptimalPlan(true);
+
+    try {
+      const plan = await requestGoalOptimalArrangement(
+        consultingGoal,
+        consultMessages.map((m) => ({ role: m.role, content: m.content }))
+      );
+
+      setOptimalPlan(plan);
+      setConsultTab('optimal_plan');
+
+      const notificationMsg: GoalConsultationMessage = {
+        id: 'plan-notice-' + Date.now(),
+        role: 'assistant',
+        content: `### 📋 教练已为你做出【最优推进安排方案】！\n\n已根据交流诊断重新精炼了 Q1-Q4 里程碑，并锁定了未来48小时最关键的单点突破口：\`${plan.coreFocusImmediate}\`。\n请查看【最优安排方案】标签页，一键采纳并应用到当前目标！`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      const updatedHistory = [...consultMessages, notificationMsg];
+      setConsultMessages(updatedHistory);
+
+      const updatedGoal: AcceleratedGoal = {
+        ...consultingGoal,
+        consultationHistory: updatedHistory,
+        lastOptimalArrangement: plan,
+        updatedAt: new Date().toISOString(),
+      };
+      setConsultingGoal(updatedGoal);
+      onUpdateGoal(updatedGoal);
+    } catch (err) {
+      console.error(err);
+      alert('生成最优安排方案失败，请重试');
+    } finally {
+      setIsGeneratingOptimalPlan(false);
+    }
+  };
+
+  // Apply Optimal Plan into Goal State
+  const handleApplyOptimalPlan = () => {
+    if (!consultingGoal || !optimalPlan) return;
+
+    const updatedGoal: AcceleratedGoal = {
+      ...consultingGoal,
+      milestones: optimalPlan.optimizedMilestones,
+      firstPrinciples: {
+        ...consultingGoal.firstPrinciples,
+        coreBottleneck: optimalPlan.newBottleneck || consultingGoal.firstPrinciples.coreBottleneck,
+        unconventionalPath:
+          optimalPlan.newUnconventionalPath || consultingGoal.firstPrinciples.unconventionalPath,
+      },
+      supervision: {
+        ...consultingGoal.supervision,
+        muskDirective: optimalPlan.coachDirective || consultingGoal.supervision.muskDirective,
+        velocityScore: Math.max(consultingGoal.supervision.velocityScore, 92),
+        paceEvaluation: 'ahead_of_5x',
+        lastAuditDate: new Date().toISOString().split('T')[0],
+      },
+      lastOptimalArrangement: optimalPlan,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setConsultingGoal(updatedGoal);
+    onUpdateGoal(updatedGoal);
+    setConsultApplyToast('🎉 最优安排方案已成功采纳！里程碑已重组，瓶颈与第一破局点已全面刷新！');
+    setTimeout(() => {
+      setConsultApplyToast(null);
+    }, 4500);
+  };
+
+  // Speech Recognition for Consultation Chat
+  const handleToggleConsultSpeech = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('当前浏览器未支持 Web 语音识别，请直接键入。');
+      return;
+    }
+    if (isConsultListening) {
+      setIsConsultListening(false);
+      return;
+    }
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'zh-CN';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.onstart = () => setIsConsultListening(true);
+      recognition.onend = () => setIsConsultListening(false);
+      recognition.onerror = () => setIsConsultListening(false);
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setConsultInput((prev) => (prev ? prev + ' ' + transcript : transcript));
+        }
+      };
+      recognition.start();
+    } catch (e) {
+      setIsConsultListening(false);
+    }
+  };
 
   // Open Add Goal Modal
   const handleOpenAddModal = () => {

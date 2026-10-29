@@ -644,6 +644,284 @@ app.post('/api/coach/musk-supervision', async (req: Request, res: Response) => {
   }
 });
 
+// 目标实现：AI 教练深度诊断与交流会话 (Streaming SSE)
+app.post('/api/coach/goal-consultation-chat', async (req: Request, res: Response) => {
+  const { goal, messages, contextData } = req.body;
+
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'messages array is required' });
+  }
+
+  // Set up SSE headers for streaming
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const systemPrompt = `你是一位融合了埃隆·马斯克（Elon Musk）第一性原理工程思维、纳瓦尔·拉威肯特高杠杆思维以及顶尖战略教练体系的【极限目标突破与排期总教练】。
+你当前正在就用户的特定极限加速目标（目标：1年完成5年进度）进行【一对一深度诊断与排期最优安排交流】。
+
+【当前被诊断的目标全貌】：
+- 目标名称: ${goal?.title || '未命名极速目标'}
+- 所属维度: ${goal?.category || 'career'}
+- 原始5年愿景: ${goal?.fiveYearVision || '无'}
+- 倒逼1年极限指标: ${goal?.oneYearTarget || '无'}
+- 底层物理事实 (第一性原理): ${goal?.firstPrinciples?.fundamentalTruth || '无'}
+- 必须砍掉的伪流程: ${JSON.stringify(goal?.firstPrinciples?.deletedProcesses || [])}
+- 当前核心限速瓶颈: ${goal?.firstPrinciples?.coreBottleneck || '无'}
+- 非常规破局路径: ${goal?.firstPrinciples?.unconventionalPath || '无'}
+- 当前配置的里程碑: ${JSON.stringify(goal?.milestones || [])}
+- 航向评分: ${goal?.supervision?.velocityScore || 85} (${goal?.supervision?.paceEvaluation || '在轨'})
+- 当前最新督导令: ${goal?.supervision?.muskDirective || '无'}
+- 辅助上下文: ${contextData ? JSON.stringify(contextData) : '无'}
+
+【教练交流原则】：
+1. 语言风格：专业、尖锐、务实、直截了当。绝不鼓励“假努力”，绝不容忍“用形式上的忙碌掩盖战略上的懒惰”。
+2. 深度诊断：如果用户感到时间不够用、推进卡顿或信心动摇，运用“第一性原理”和“五步工作法”帮其无情砍减非核心琐事，找出真正的 Rate-limiting Step（限速瓶颈）。
+3. 给出最优安排：在交谈中提出明确的排期重构思路、最小交付切片和优先级排序。
+4. 格式规范：使用优雅清晰的 Markdown 排版，重点突出，最后给出 1 个最具穿透力的诊断提问或 1 个未来 24 小时内的启动动作。`;
+
+  const sendFallback = async () => {
+    const fallbackText = `### 💡 AI 教练深度诊断与突破建议
+
+针对目标【${goal?.title || '当前目标'}】，结合 1 年倒逼 5 年进度的高杠杆模型，我为你诊断出以下关键突破点：
+
+1. **破除隐形假努力**：
+   - 检查你最近是否把时间花费在“找教程”、“美化排版”或“过度思考”上。
+   - 记住马斯克第一戒律：**永远不要优化根本不该存在的工作环节**。
+
+2. **锁定核心限速瓶颈**：
+   - 当前阻碍周转的核心阻力往往是**“交付物与外界真实反馈之间的距离”**。
+   - 只要你的成果还没放到真实受众眼前，所有内部迭代都只是主观假设。
+
+3. **建议的最优推进动作**：
+   - 将 Q1 里程碑颗粒度切到 48 小时内可交付的最小切片。
+   - 点击上方【✨ 一键生成最优安排方案】，我可以立即为你重组并排出一套最精简、交付证据硬核的里程碑。
+
+**🎯 教练诊断追问**：
+> 如果本周只能交付一件能在真实世界中被验证的粗糙产出，那会是什么？`;
+
+    for (const char of fallbackText) {
+      res.write(`data: ${JSON.stringify({ text: char })}\n\n`);
+      await new Promise((r) => setTimeout(r, 12));
+    }
+    res.write('data: [DONE]\n\n');
+    res.end();
+  };
+
+  if (!ai) {
+    await sendFallback();
+    return;
+  }
+
+  try {
+    const formattedContents = messages.map((m: { role: string; content: string }) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+
+    const responseStream = await ai.models.generateContentStream({
+      model: 'gemini-3.8-flash',
+      contents: formattedContents,
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.7,
+      },
+    });
+
+    for await (const chunk of responseStream) {
+      const text = chunk.text;
+      if (text) {
+        res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      }
+    }
+
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (error: any) {
+    console.error('Goal consultation error:', error);
+    res.write(`data: ${JSON.stringify({ text: '\n\n*(诊断会话波动，切换为本地离线诊断建议)*\n\n' })}\n\n`);
+    await sendFallback();
+  }
+});
+
+// 目标实现：AI 教练为目标生成【最优重排方案与里程碑】(Structured JSON)
+app.post('/api/coach/goal-optimize-arrangement', async (req: Request, res: Response) => {
+  const { goal, dialogueHistory, constraints } = req.body;
+
+  if (!goal) {
+    return res.status(400).json({ error: 'goal object is required' });
+  }
+
+  const prompt = `你现在是埃隆·马斯克（Elon Musk）工程团队的总规划师化身与第一性原理教练。
+请根据以下【5X极限目标】的背景、当前诊断交流记录，以及用户的实际约束条件，为该目标量身定制一套【最优推进安排（The Optimal Arrangement）】。
+
+【目标资料】：
+- 目标名称: ${goal.title}
+- 维度类别: ${goal.category}
+- 5年愿景: ${goal.fiveYearVision}
+- 1年倒逼指标: ${goal.oneYearTarget}
+- 底层物理事实: ${goal.firstPrinciples?.fundamentalTruth || ''}
+- 原定瓶颈: ${goal.firstPrinciples?.coreBottleneck || ''}
+- 当前里程碑: ${JSON.stringify(goal.milestones || [])}
+- 用户补充约束/诉求: ${constraints || '追求极致高杠杆与最少阻力，砍掉一切伪流程'}
+- 双方诊断对话摘要: ${JSON.stringify(dialogueHistory || []).slice(0, 800)}
+
+【重排优化原则】：
+1. 里程碑重组：将Q1-Q4重新精简为4个阶段，每个阶段必须有明确的【targetDays】、【聚焦单点】和【拒绝打假的客观验证证据(verificationProof)】。
+2. 极限砍负：删减一切非必需步骤，把交付时间大幅前置（Q1重点是跑通闭环，而非追求规模）。
+3. 破局切片：明确未来48小时内必须击穿的第一破局动作（CoreFocusImmediate）。
+
+请严格输出 JSON 对象（无任何其他文字或 markdown 包装）：
+{
+  "diagnosisSummary": "一针见血的当前状态与卡点诊断总结（约60字）",
+  "reasoning": "为什么这样重排里程碑能避开假努力并实现5X极限加速的底层逻辑（约80字）",
+  "coreFocusImmediate": "未来48小时内必须死磕完成的最核心破局动作（具体、可交付）",
+  "newBottleneck": "重新提炼出的当前唯一核心限速瓶颈（Rate-limiting step）",
+  "newUnconventionalPath": "绕开常规低效排队的非常规破局战术",
+  "weeklyPacingGuideline": "每周工时节奏分配与防假努力戒律（如每周投入核心工时，严禁无交付的空转）",
+  "optimizedMilestones": [
+    {
+      "id": "opt-q1",
+      "phase": "Q1",
+      "title": "精炼重组后的Q1里程碑标题（极速破局）",
+      "targetDays": 30,
+      "completed": false,
+      "verificationProof": "严苛的客观可检验硬证据（如代码上线、交易订单、实物指标）"
+    },
+    {
+      "id": "opt-q2",
+      "phase": "Q2",
+      "title": "精炼重组后的Q2里程碑标题（打通第二战线）",
+      "targetDays": 60,
+      "completed": false,
+      "verificationProof": "客观可检验硬证据"
+    },
+    {
+      "id": "opt-q3",
+      "phase": "Q3",
+      "title": "精炼重组后的Q3里程碑标题（高频迭代与产能翻倍）",
+      "targetDays": 90,
+      "completed": false,
+      "verificationProof": "客观可检验硬证据"
+    },
+    {
+      "id": "opt-q4",
+      "phase": "Q4",
+      "title": "精炼重组后的Q4里程碑标题（达成5年终局指标）",
+      "targetDays": 120,
+      "completed": false,
+      "verificationProof": "终局硬指标审计报告"
+    }
+  ],
+  "coachDirective": "严苛的马斯克监督训令（直接、有力、拒绝借口）"
+}`;
+
+  if (!ai) {
+    return res.json({
+      diagnosisSummary: `针对【${goal.title}】，当前最大风险在于初期试图兼顾过多非核心要素，稀释了穿透力。`,
+      reasoning: '基于第一性原理，将交付周期压缩到最小单元，通过Q1极速MVP获取真实世界反馈，以此为锚点撬动后续增长。',
+      coreFocusImmediate: '在未来48小时内，关闭一切次要任务，交付一份粗糙但能跑通闭环的最小原型。',
+      newBottleneck: '从方案设计到外部真实用户产生直接反馈的闭环延迟。',
+      newUnconventionalPath: '不等待完整系统构建，直接以最小可交付单点测试真实响应。',
+      weeklyPacingGuideline: '每周锁定至少12小时黄金深度工时，所有时间只用于产生交付物，严禁以准备为借口拖延。',
+      optimizedMilestones: [
+        {
+          id: 'opt-q1-' + Date.now(),
+          phase: 'Q1',
+          title: 'Q1 极限破局：交付最小可用MVP闭环并获取真实反馈',
+          targetDays: 30,
+          completed: false,
+          verificationProof: '客观上线链接、实际交易凭证或体检数值'
+        },
+        {
+          id: 'opt-q2-' + Date.now(),
+          phase: 'Q2',
+          title: 'Q2 消除限速瓶颈：打通规模化通道，周转率提升200%',
+          targetDays: 60,
+          completed: false,
+          verificationProof: '周转效率与产出数据报告'
+        },
+        {
+          id: 'opt-q3-' + Date.now(),
+          phase: 'Q3',
+          title: 'Q3 极限迭代：建立自动化与第二杠杆支点',
+          targetDays: 90,
+          completed: false,
+          verificationProof: '产出指标翻倍的验收数据'
+        },
+        {
+          id: 'opt-q4-' + Date.now(),
+          phase: 'Q4',
+          title: 'Q4 达成5年级终局指标：完成系统固化与年终审计',
+          targetDays: 120,
+          completed: false,
+          verificationProof: '年度硬指标审计报告'
+        }
+      ],
+      coachDirective: '马斯克监督令：计划已经精简到极限，现在唯一的变量是你的执行速度。48小时内交出第一件成果！'
+    });
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.3,
+      },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || '{}');
+    res.json(parsed);
+  } catch (err: any) {
+    console.error('Goal optimize arrangement error:', err);
+    res.json({
+      diagnosisSummary: `针对【${goal.title}】，首要任务是识别伪需求，将全部注意力集中于核心交付物。`,
+      reasoning: '剥离一切装饰性流程，以最硬核的交付标准推进，确保每一步都有客观外部证据验证。',
+      coreFocusImmediate: '立刻启动第一步核心交付动作，今晚之前产出可被检验的初稿。',
+      newBottleneck: '想法到交付物外部检验的周期过长。',
+      newUnconventionalPath: '跳过冗余规划，以原型直接验证真实价值。',
+      weeklyPacingGuideline: '每周专注唯一主线，拒绝一切低杠杆杂务打扰。',
+      optimizedMilestones: [
+        {
+          id: 'opt-q1',
+          phase: 'Q1',
+          title: 'Q1 极限突破MVP闭环',
+          targetDays: 30,
+          completed: false,
+          verificationProof: '交付物硬证据'
+        },
+        {
+          id: 'opt-q2',
+          phase: 'Q2',
+          title: 'Q2 规模化消除瓶颈',
+          targetDays: 60,
+          completed: false,
+          verificationProof: '产出翻倍证据'
+        },
+        {
+          id: 'opt-q3',
+          phase: 'Q3',
+          title: 'Q3 自动化杠杆锁定',
+          targetDays: 90,
+          completed: false,
+          verificationProof: '系统自动化指标'
+        },
+        {
+          id: 'opt-q4',
+          phase: 'Q4',
+          title: 'Q4 达成5年级终局指标',
+          targetDays: 120,
+          completed: false,
+          verificationProof: '终局验收审计'
+        }
+      ],
+      coachDirective: '马斯克监督令：停止空想，现在就迈出第一步！'
+    });
+  }
+});
+
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
   const isDev = process.env.NODE_ENV !== 'production';

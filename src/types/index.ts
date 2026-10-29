@@ -165,6 +165,27 @@ export interface AcceleratedGoal {
     lastAuditDate?: string;
   };
   relatedProjectId?: string;
+  consultationHistory?: GoalConsultationMessage[];
+  lastOptimalArrangement?: GoalOptimalArrangement;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface GoalConsultationMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface GoalOptimalArrangement {
+  diagnosisSummary: string;
+  reasoning: string;
+  coreFocusImmediate: string;
+  newBottleneck: string;
+  newUnconventionalPath: string;
+  weeklyPacingGuideline: string;
+  optimizedMilestones: MuskGoalMilestone[];
+  coachDirective: string;
+  generatedAt: string;
 }

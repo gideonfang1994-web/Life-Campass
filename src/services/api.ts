@@ -1,4 +1,12 @@
-import { LifeProject, DailyLog, LifeWheelScores, CoachPersona, ChatMessage } from '../types';
+import {
+  LifeProject,
+  DailyLog,
+  LifeWheelScores,
+  CoachPersona,
+  ChatMessage,
+  AcceleratedGoal,
+  GoalOptimalArrangement,
+} from '../types';
 
 export interface MilestoneBreakdownResponse {
   milestones: { title: string; targetDays?: number }[];
@@ -239,5 +247,100 @@ export async function auditMuskGoalSupervision(payload: {
   }
 
   return response.json();
+}
+
+// 目标实现：AI 教练深度诊断与排期交流 (Streaming SSE)
+export async function streamGoalConsultationChat(
+  goal: AcceleratedGoal,
+  messages: { role: string; content: string }[],
+  contextData: any,
+  onChunk: (text: string) => void,
+  onComplete: () => void,
+  onError: (err: any) => void
+) {
+  try {
+    const response = await fetch('/api/coach/goal-consultation-chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        goal,
+        messages,
+        contextData,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error('ReadableStream not supported');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          const dataStr = trimmed.slice(6);
+          if (dataStr === '[DONE]') {
+            onComplete();
+            return;
+          }
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (parsed.text) {
+              onChunk(parsed.text);
+            }
+          } catch (e) {
+            // Ignore parse errors on partial chunks
+          }
+        }
+      }
+    }
+    onComplete();
+  } catch (err) {
+    console.error('Goal consultation stream error:', err);
+    onError(err);
+  }
+}
+
+// 目标实现：AI 教练为目标生成【最优重排方案】
+export async function requestGoalOptimalArrangement(
+  goal: AcceleratedGoal,
+  dialogueHistory: { role: string; content: string }[],
+  constraints?: string
+): Promise<GoalOptimalArrangement> {
+  const response = await fetch('/api/coach/goal-optimize-arrangement', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      goal,
+      dialogueHistory,
+      constraints,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to generate optimal goal arrangement');
+  }
+
+  const data = await response.json();
+  return {
+    ...data,
+    generatedAt: new Date().toISOString(),
+  };
 }
 
