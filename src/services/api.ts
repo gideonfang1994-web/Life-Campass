@@ -154,3 +154,90 @@ export async function requestCourseCorrection(
   const data = await response.json();
   return data.correction || '暂无法获取纠偏方案';
 }
+
+export interface ParsedReflection {
+  highlight: string;
+  wins: string[];
+  friction: string;
+  energyLevel: number;
+  mood: 'thriving' | 'calm' | 'focused' | 'tired' | 'anxious';
+  coachTip?: string;
+}
+
+export async function parseVoiceReflection(rawText: string): Promise<ParsedReflection> {
+  const response = await fetch('/api/coach/parse-reflection', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rawText }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to parse voice reflection');
+  }
+
+  return response.json();
+}
+
+export interface MuskBreakdownResponse {
+  oneYearTarget: string;
+  fundamentalTruth: string;
+  deletedProcesses: string[];
+  coreBottleneck: string;
+  unconventionalPath: string;
+  milestones: {
+    id: string;
+    phase: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+    title: string;
+    targetDays?: number;
+    verificationProof: string;
+  }[];
+  muskDirective: string;
+}
+
+export async function generateMuskBreakdown(payload: {
+  title: string;
+  category: string;
+  fiveYearVision: string;
+  context?: string;
+}): Promise<MuskBreakdownResponse> {
+  const response = await fetch('/api/coach/musk-breakdown', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error('Musk breakdown request failed');
+  }
+
+  return response.json();
+}
+
+export interface MuskSupervisionResponse {
+  velocityScore: number;
+  paceEvaluation: 'ahead_of_5x' | 'on_pace_5x' | 'lagging_risk' | 'linear_trap';
+  blockerAlert: string;
+  ruthlessAudit: string;
+  muskDirective: string;
+}
+
+export async function auditMuskGoalSupervision(payload: {
+  goalTitle: string;
+  oneYearTarget: string;
+  currentProgress: number;
+  actualWork?: string;
+  recentLogs?: any[];
+}): Promise<MuskSupervisionResponse> {
+  const response = await fetch('/api/coach/musk-supervision', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error('Musk supervision request failed');
+  }
+
+  return response.json();
+}
+

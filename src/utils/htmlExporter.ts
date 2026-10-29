@@ -1,15 +1,17 @@
-import { LifeProject, DailyLog, LifeWheelScores, RetrospectiveReport } from '../types';
+import { LifeProject, DailyLog, LifeWheelScores, RetrospectiveReport, AcceleratedGoal } from '../types';
 
 export function exportStandaloneHtmlFile(
   projects: LifeProject[],
   logs: DailyLog[],
   wheelScores: LifeWheelScores,
-  retrospectives: RetrospectiveReport[]
+  retrospectives: RetrospectiveReport[],
+  acceleratedGoals?: AcceleratedGoal[]
 ) {
   const serializedProjects = JSON.stringify(projects, null, 2);
   const serializedLogs = JSON.stringify(logs, null, 2);
   const serializedWheel = JSON.stringify(wheelScores, null, 2);
   const serializedRetro = JSON.stringify(retrospectives, null, 2);
+  const serializedMusk = JSON.stringify(acceleratedGoals || [], null, 2);
 
   const htmlContent = `<!DOCTYPE html>
 <html lang="zh-CN">

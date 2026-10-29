@@ -13,9 +13,12 @@ import {
   Settings,
   X,
   Sparkles,
+  Scale,
+  Target,
+  Flame,
 } from 'lucide-react';
 
-export type ActiveTab = 'dashboard' | 'dimensions' | 'logs' | 'retrospective' | 'coach';
+export type ActiveTab = 'today' | 'goal_acceleration' | 'dimensions' | 'plan_actual' | 'coach';
 
 interface Props {
   activeTab: ActiveTab;
@@ -53,41 +56,41 @@ export const Header: React.FC<Props> = ({
   };
 
   const navItems: { id: ActiveTab; label: string; icon: any }[] = [
-    { id: 'dashboard', label: '全景中枢', icon: LayoutDashboard },
-    { id: 'dimensions', label: '核心维度 (工作·健康·财富·认知)', icon: FolderKanban },
-    { id: 'logs', label: '觉察打卡', icon: FileEdit },
-    { id: 'retrospective', label: '周期复盘', icon: TrendingUp },
-    { id: 'coach', label: 'AI教练室', icon: MessageSquareQuote },
+    { id: 'today', label: '今日焦点', icon: Target },
+    { id: 'goal_acceleration', label: '目标实现', icon: Flame },
+    { id: 'dimensions', label: '四大维度', icon: FolderKanban },
+    { id: 'plan_actual', label: '计划与实绩', icon: Scale },
+    { id: 'coach', label: '复盘与教练', icon: MessageSquareQuote },
   ];
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
+      <header className="sticky top-0 z-40 bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border-b border-stone-200/80 dark:border-stone-800 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 gap-4">
+          <div className="flex items-center justify-between h-18 gap-4 py-2">
             {/* Logo and Brand */}
             <div
-              onClick={() => onTabChange('dashboard')}
-              className="flex items-center gap-2.5 cursor-pointer shrink-0"
+              onClick={() => onTabChange('today')}
+              className="flex items-center gap-3 cursor-pointer shrink-0"
             >
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+              <div className="w-10 h-10 rounded-2xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 flex items-center justify-center shadow-md">
                 <Compass className="w-5 h-5 animate-spin-slow" />
               </div>
               <div>
-                <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
+                <span className="font-extrabold text-lg tracking-tight text-stone-900 dark:text-white flex items-center gap-2">
                   LifeCompass
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
+                  <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
                     人生教练
                   </span>
                 </span>
-                <span className="hidden sm:block text-[10px] text-slate-400 font-medium">
-                  监督 · 记录 · 分析 · 复盘 · 进化
+                <span className="hidden sm:block text-xs text-stone-400 font-medium">
+                  聚焦唯一要事 · 构建无许可杠杆 · 消除假努力
                 </span>
               </div>
             </div>
 
             {/* Desktop Navigation Tabs */}
-            <nav className="hidden md:flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
+            <nav className="hidden md:flex items-center gap-1.5 bg-stone-100/80 dark:bg-stone-800/80 p-1.5 rounded-2xl border border-stone-200/60 dark:border-stone-700/60">
               {navItems.map((item) => {
                 const isSelected = activeTab === item.id;
                 const Icon = item.icon;
@@ -96,13 +99,13 @@ export const Header: React.FC<Props> = ({
                     key={item.id}
                     type="button"
                     onClick={() => onTabChange(item.id)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all ${
                       isSelected
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200/60 dark:ring-slate-700/60'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        ? 'bg-white dark:bg-stone-900 text-stone-950 dark:text-white shadow-sm ring-1 ring-stone-200/80 dark:ring-stone-700/80'
+                        : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
                     }`}
                   >
-                    <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
+                    <Icon className={`w-4 h-4 ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
                     <span>{item.label}</span>
                   </button>
                 );
@@ -115,26 +118,26 @@ export const Header: React.FC<Props> = ({
                 href="/life_coach.html"
                 target="_blank"
                 rel="noreferrer"
-                className="hidden lg:flex items-center gap-1 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/40 text-xs font-semibold hover:bg-emerald-100 transition"
+                className="hidden xl:flex items-center gap-1 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 bg-stone-50/60 dark:bg-stone-800/40 text-xs font-semibold hover:bg-stone-100 transition"
                 title="在新标签页中打开单文件独立 HTML 网页"
               >
-                🌐 独立HTML版
+                🌐 单文件HTML
               </a>
 
               <button
                 type="button"
                 onClick={onOpenNewLog}
-                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition"
+                className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 font-bold text-xs sm:text-sm shadow-sm transition hover:opacity-90"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
                 <span>记觉察 / 打卡</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowSettingsModal(true)}
-                className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                title="数据备份、导出HTML与设置"
+                className="p-2.5 rounded-xl text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                title="数据备份与设置"
               >
                 <Settings className="w-4 h-4" />
               </button>
@@ -143,7 +146,7 @@ export const Header: React.FC<Props> = ({
         </div>
 
         {/* Mobile Navigation Bar */}
-        <div className="md:hidden flex items-center justify-around border-t border-slate-200/60 dark:border-slate-800 px-2 py-1.5 bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="md:hidden flex items-center justify-around border-t border-stone-200/60 dark:border-stone-800 px-2 py-2 bg-stone-50/80 dark:bg-stone-900/80">
           {navItems.map((item) => {
             const isSelected = activeTab === item.id;
             const Icon = item.icon;
@@ -152,14 +155,14 @@ export const Header: React.FC<Props> = ({
                 key={item.id}
                 type="button"
                 onClick={() => onTabChange(item.id)}
-                className={`flex flex-col items-center py-1 px-2 rounded-xl text-[10px] font-medium transition ${
+                className={`flex flex-col items-center py-1 px-2 rounded-xl text-xs font-semibold transition ${
                   isSelected
                     ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-                    : 'text-slate-500 dark:text-slate-400'
+                    : 'text-stone-500 dark:text-stone-400'
                 }`}
               >
                 <Icon className="w-4 h-4 mb-0.5" />
-                <span>{item.label}</span>
+                <span className="text-[11px]">{item.label}</span>
               </button>
             );
           })}
@@ -168,31 +171,31 @@ export const Header: React.FC<Props> = ({
 
       {/* Settings / Data Backup Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Settings className="w-4 h-4 text-emerald-600" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  数据管理与配置
+                <h3 className="text-base font-bold text-stone-900 dark:text-white">
+                  数据管理与独立 HTML 导出
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowSettingsModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 text-xs sm:text-sm">
               <div>
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  导出与离线独立网页 (HTML)
+                <h4 className="font-bold text-stone-900 dark:text-white mb-1">
+                  导出离线独立 HTML 网页
                 </h4>
-                <p className="text-xs text-slate-500 mb-2">
-                  可将你当下的全部人生项目、生命之轮、打卡日志和复盘打包为单文件 HTML，无需任何安装，双击即可在任何电脑/手机浏览器中离线打开与打印。
+                <p className="text-stone-500 text-xs mb-2 leading-relaxed">
+                  将你当下的全部人生项目、计划与实绩记录、打卡日志和复盘报告生成单一离线 HTML 文件，永久保留且不依赖任何服务器。
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -201,80 +204,71 @@ export const Header: React.FC<Props> = ({
                       onExportHtml();
                       setShowSettingsModal(false);
                     }}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition flex items-center gap-2 shadow-sm"
+                    className="px-4 py-2 rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
                   >
-                    <span>🌐</span>
-                    一键导出为独立 HTML 网页 (.html)
+                    <span>🌐</span> 一键下载个人独立 HTML
                   </button>
                   <a
                     href="/life_coach.html"
                     target="_blank"
                     rel="noreferrer"
-                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 text-xs font-semibold hover:bg-stone-50"
                   >
-                    在新窗口预览单文件版
+                    新窗口预览
                   </a>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  导出个人生命数据库 (JSON)
+              <div className="pt-3 border-t border-stone-100 dark:border-stone-800">
+                <h4 className="font-bold text-stone-900 dark:text-white mb-1">
+                  JSON 备份与恢复
                 </h4>
-                <p className="text-xs text-slate-500 mb-2">
-                  数据保存在你的本地浏览器，可一键导出为 JSON 备份以便日后在其他设备无缝恢复。
+                <p className="text-stone-500 text-xs mb-2">
+                  导出或导入完整 JSON 数据集，用于跨设备数据迁移。
                 </p>
                 <button
                   type="button"
                   onClick={onExportData}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition flex items-center gap-2"
+                  className="px-4 py-2 rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 font-semibold text-xs transition flex items-center gap-2 mb-3"
                 >
-                  <Download className="w-3.5 h-3.5 text-emerald-600" />
-                  下载完整备份数据 (.json)
+                  <Download className="w-3.5 h-3.5" /> 下载完整备份文件 (.json)
                 </button>
-              </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  恢复 / 导入备份数据
-                </h4>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
                   placeholder="在此粘贴此前导出的 JSON 备份文本..."
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none mb-2"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white focus:outline-none mb-2"
                 />
                 <button
                   type="button"
                   onClick={handleImportSubmit}
                   disabled={!importText.trim()}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-semibold text-xs transition flex items-center gap-1.5"
+                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-semibold text-xs transition flex items-center gap-1.5"
                 >
-                  <Upload className="w-3.5 h-3.5" />
-                  确认恢复导入
+                  <Upload className="w-3.5 h-3.5" /> 恢复导入数据
                 </button>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                <h4 className="text-xs font-bold text-rose-600 dark:text-rose-400 mb-1">
+              <div className="pt-3 border-t border-stone-100 dark:border-stone-800">
+                <h4 className="font-bold text-rose-600 mb-1">
                   重置演示数据
                 </h4>
-                <p className="text-xs text-slate-500 mb-2">
-                  若希望恢复到系统预装的丰富种子项目、打卡样例与生命之轮，可在此重置。
+                <p className="text-stone-500 text-xs mb-2">
+                  重置为预装的《最重要的事只有一件》与《纳瓦尔宝典》精选种子范例。
                 </p>
                 <button
                   type="button"
                   onClick={() => {
-                    if (confirm('确定要重置为初始演示数据吗？你当前的修改将被覆盖。')) {
+                    if (confirm('确定要重置为初始种子演示数据吗？')) {
                       onResetData();
                       setShowSettingsModal(false);
                     }
                   }}
-                  className="px-4 py-2 rounded-xl bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 font-semibold text-xs hover:bg-rose-100 transition flex items-center gap-1.5"
+                  className="px-4 py-1.5 rounded-xl bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 font-semibold text-xs hover:bg-rose-100 transition flex items-center gap-1.5"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  重置为初始种子演示数据
+                  <RotateCcw className="w-3.5 h-3.5" /> 重置为精选演示数据
                 </button>
               </div>
             </div>

@@ -1,7 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DailyLog, LifeProject, MoodType } from '../types';
 import { MOOD_CONFIG } from '../utils/categories';
-import { X, Calendar, BatteryCharging, Smile, Sparkles, Plus, Trash2, ArrowUpRight } from 'lucide-react';
+import { parseVoiceReflection } from '../services/api';
+import {
+  X,
+  Calendar,
+  BatteryCharging,
+  Smile,
+  Sparkles,
+  Plus,
+  Trash2,
+  Mic,
+  MicOff,
+  Loader2,
+  Wand2,
+  Check,
+  ArrowUpRight,
+} from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -23,12 +38,92 @@ export const DailyLogModal: React.FC<Props> = ({
   const [highlight, setHighlight] = useState('');
   const [wins, setWins] = useState<string[]>(['']);
   const [friction, setFriction] = useState('');
-  const [timeSpentHours, setTimeSpentHours] = useState<number>(3);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(projects[0]?.id || '');
   const [projectNote, setProjectNote] = useState('');
   const [projectProgressDelta, setProjectProgressDelta] = useState<number>(5);
 
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [isParsingVoice, setIsParsingVoice] = useState(false);
+  const [coachParsedTip, setCoachParsedTip] = useState<string | null>(null);
+
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Check speech recognition support
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'zh-CN';
+
+      recognition.onresult = (event: any) => {
+        let current = '';
+        for (let i = 0; i < event.results.length; i++) {
+          current += event.results[i][0].transcript;
+        }
+        setVoiceTranscript(current);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
   if (!isOpen) return null;
+
+  const toggleRecording = () => {
+    if (!recognitionRef.current) {
+      alert('当前浏览器未启用语音识别，请在下方文本框中直接输入，或使用 Chrome/Safari 浏览器。');
+      return;
+    }
+
+    if (isRecording) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    } else {
+      try {
+        setVoiceTranscript('');
+        recognitionRef.current.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleParseVoiceText = async () => {
+    const textToParse = voiceTranscript.trim();
+    if (!textToParse) return;
+
+    setIsParsingVoice(true);
+    try {
+      const result = await parseVoiceReflection(textToParse);
+      if (result.highlight) setHighlight(result.highlight);
+      if (result.wins && result.wins.length > 0) setWins(result.wins);
+      if (result.friction) setFriction(result.friction);
+      if (result.energyLevel) setEnergyLevel(result.energyLevel);
+      if (result.mood) setMood(result.mood);
+      if (result.coachTip) setCoachParsedTip(result.coachTip);
+    } catch (err) {
+      console.error(err);
+      if (!highlight) setHighlight(textToParse);
+    } finally {
+      setIsParsingVoice(false);
+    }
+  };
 
   const handleWinChange = (index: number, val: string) => {
     const updated = [...wins];
@@ -60,7 +155,6 @@ export const DailyLogModal: React.FC<Props> = ({
         progressDelta: projectProgressDelta,
       });
 
-      // Update the targeted project's checkin log and progress
       updatedProjectsList = projects.map((p) => {
         if (p.id === selectedProjectId) {
           const newProgress = Math.min(100, Math.max(0, p.progress + projectProgressDelta));
@@ -92,8 +186,8 @@ export const DailyLogModal: React.FC<Props> = ({
       highlight: highlight.trim(),
       wins: cleanedWins,
       friction: friction.trim(),
-      timeSpentHours: Number(timeSpentHours) || 0,
       projectUpdates,
+      coachComment: coachParsedTip || undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -102,27 +196,27 @@ export const DailyLogModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl my-8 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-2xl w-full max-w-xl my-6 overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
-              <Sparkles className="w-5 h-5" />
+            <span className="p-2 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300">
+              <Sparkles className="w-4 h-4 text-emerald-600" />
             </span>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                今日觉察与项目打卡日志
+              <h3 className="text-base font-bold text-stone-900 dark:text-white">
+                日常数据监督与觉察打卡
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                捕捉能量流转、确认微小胜利、锚定明日动量
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                支持语音录音自述、AI一键提炼结构化战果与卡点
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
           >
             <X className="w-5 h-5" />
           </button>
@@ -130,30 +224,99 @@ export const DailyLogModal: React.FC<Props> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-          {/* Date & Energy level */}
+          {/* Voice Input Section */}
+          <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/80 dark:border-stone-700/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
+                <Mic className={`w-3.5 h-3.5 ${isRecording ? 'text-rose-500 animate-pulse' : 'text-stone-500'}`} />
+                语音实时输入 (口述今日收获或困惑)
+              </span>
+
+              <button
+                type="button"
+                onClick={toggleRecording}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${
+                  isRecording
+                    ? 'bg-rose-500 text-white animate-pulse'
+                    : 'bg-stone-900 text-white dark:bg-white dark:text-stone-950 hover:opacity-90'
+                }`}
+              >
+                {isRecording ? (
+                  <>
+                    <MicOff className="w-3.5 h-3.5" /> 正在录音，点击结束
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-3.5 h-3.5" /> 点击开始语音输入
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Transcript Area */}
+            <div className="relative">
+              <textarea
+                rows={2}
+                value={voiceTranscript}
+                onChange={(e) => setVoiceTranscript(e.target.value)}
+                placeholder="按住语音或在此输入原话，例如：“今天完成了SaaS定价方案，早晨慢跑5公里，感觉心流很好但下午有一点点分心...”"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white focus:outline-none"
+              />
+
+              {voiceTranscript.trim() && (
+                <button
+                  type="button"
+                  onClick={handleParseVoiceText}
+                  disabled={isParsingVoice}
+                  className="mt-1 px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold flex items-center gap-1 transition disabled:opacity-50"
+                >
+                  {isParsingVoice ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" /> AI提炼结构中...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-3 h-3" /> AI智能整理填入下方
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {coachParsedTip && (
+            <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/60 text-xs text-emerald-900 dark:text-emerald-200 flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">教练即时反馈：</span>
+                {coachParsedTip}
+              </div>
+            </div>
+          )}
+
+          {/* Date & Energy Level */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5" />
-                记录日期
+              <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5" /> 日期
               </label>
               <input
                 type="date"
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+              <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1 flex items-center justify-between">
                 <span className="flex items-center gap-1">
-                  <BatteryCharging className="w-3.5 h-3.5 text-emerald-500" />
-                  精力电量：{energyLevel} / 5
+                  <BatteryCharging className="w-3.5 h-3.5 text-emerald-600" />
+                  精力电量: {energyLevel}/5
                 </span>
-                <span className="text-slate-400 font-normal">
-                  {energyLevel <= 2 ? '⚠️ 低电透支' : energyLevel === 3 ? '⚖️ 适度平稳' : '⚡ 充沛饱满'}
+                <span className="text-stone-400 font-normal">
+                  {energyLevel <= 2 ? '⚠️ 消耗透支' : energyLevel === 3 ? '⚖️ 平稳正常' : '⚡ 充沛满格'}
                 </span>
               </label>
               <input
@@ -163,16 +326,15 @@ export const DailyLogModal: React.FC<Props> = ({
                 step="1"
                 value={energyLevel}
                 onChange={(e) => setEnergyLevel(parseInt(e.target.value))}
-                className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                className="w-full h-1.5 bg-stone-200 dark:bg-stone-700 rounded-lg appearance-none cursor-pointer accent-emerald-600"
               />
             </div>
           </div>
 
           {/* Mood Selector */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
-              <Smile className="w-3.5 h-3.5" />
-              主导心境感受
+            <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1.5 flex items-center gap-1">
+              <Smile className="w-3.5 h-3.5" /> 主导心境
             </label>
             <div className="grid grid-cols-5 gap-2">
               {(Object.keys(MOOD_CONFIG) as MoodType[]).map((mKey) => {
@@ -183,39 +345,39 @@ export const DailyLogModal: React.FC<Props> = ({
                     key={mKey}
                     type="button"
                     onClick={() => setMood(mKey)}
-                    className={`p-2 rounded-xl border text-center transition flex flex-col items-center gap-1 ${
+                    className={`p-2 rounded-xl border text-center transition flex flex-col items-center gap-0.5 ${
                       isSelected
-                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/60 font-bold'
-                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        ? 'border-stone-900 dark:border-white bg-stone-100 dark:bg-stone-800 font-bold'
+                        : 'border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800/60'
                     }`}
                   >
-                    <span className="text-lg">{mInfo.emoji}</span>
-                    <span className="text-[11px] text-slate-700 dark:text-slate-300">{mInfo.label}</span>
+                    <span className="text-base">{mInfo.emoji}</span>
+                    <span className="text-[10px] text-stone-700 dark:text-stone-300">{mInfo.label}</span>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Today's Highlight */}
+          {/* Core Highlight */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              今日核心战果 / 最大高光时刻 <span className="text-rose-500">*</span>
+            <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
+              今日核心战果 / 最大高光 <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
               value={highlight}
               onChange={(e) => setHighlight(e.target.value)}
-              placeholder="例如：完成SaaS计费链路联调；晨跑5公里配速突破5分30"
-              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="例如：跑通了产品海外Stripe结账；晨跑5公里配速突破"
+              className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white focus:outline-none"
             />
           </div>
 
-          {/* Micro-Wins list */}
+          {/* Micro Wins */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-              <span>值得嘉奖的微小胜利 (Micro-wins)</span>
+            <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1 flex items-center justify-between">
+              <span>确认微小胜利 (Micro-wins)</span>
               <button
                 type="button"
                 onClick={handleAddWin}
@@ -231,14 +393,14 @@ export const DailyLogModal: React.FC<Props> = ({
                     type="text"
                     value={w}
                     onChange={(e) => handleWinChange(idx, e.target.value)}
-                    placeholder={`微小胜利 ${idx + 1}：例如拒绝了无意识刷手机30分钟`}
-                    className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder={`小胜 ${idx + 1}`}
+                    className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white focus:outline-none"
                   />
                   {wins.length > 1 && (
                     <button
                       type="button"
                       onClick={() => handleRemoveWin(idx)}
-                      className="p-1 text-slate-400 hover:text-rose-500"
+                      className="p-1 text-stone-400 hover:text-rose-500"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -248,47 +410,44 @@ export const DailyLogModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Friction / Distractions */}
+          {/* Friction / Obstacles */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              遇到的阻力、分心或能量泄漏点 (无需自责，客观记录)
+            <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
+              遇到的阻力、分心或卡点反思 (客观记录，无须自责)
             </label>
             <textarea
               rows={2}
               value={friction}
               onChange={(e) => setFriction(e.target.value)}
-              placeholder="例如：下午临近3点注意力涣散，开了一个低效率会议；对复杂任务产生了拖延抗拒"
-              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="例如：下午精神有些涣散，看手机超过了30分钟；对某项任务产生了启动拖延"
+              className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white focus:outline-none"
             />
           </div>
 
-          {/* Link to specific Project (Optional Checkin) */}
+          {/* Link to specific Project */}
           {projects.length > 0 && (
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200">
-                <span className="flex items-center gap-1.5">
-                  <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600" />
-                  关联项目打卡 (更新进度与交付记录)
-                </span>
-              </div>
-
+            <div className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/80 dark:border-stone-700/80 space-y-2 text-xs">
+              <span className="font-semibold text-stone-800 dark:text-stone-200 flex items-center gap-1">
+                <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600" />
+                关联项目打卡 (更新单项完成度)
+              </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <select
                   value={selectedProjectId}
                   onChange={(e) => setSelectedProjectId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none"
+                  className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800"
                 >
-                  <option value="">不关联特定项目</option>
+                  <option value="">不关联具体项目</option>
                   {projects.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.title} (当前: {p.progress}%)
+                      {p.title} ({p.progress}%)
                     </option>
                   ))}
                 </select>
 
                 {selectedProjectId && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500 whitespace-nowrap">进度增加:</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-stone-500 text-[11px]">进度+</span>
                     <input
                       type="number"
                       min="0"
@@ -296,9 +455,9 @@ export const DailyLogModal: React.FC<Props> = ({
                       step="5"
                       value={projectProgressDelta}
                       onChange={(e) => setProjectProgressDelta(parseInt(e.target.value) || 0)}
-                      className="w-20 px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none"
+                      className="w-16 px-2 py-1 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-center"
                     />
-                    <span className="text-xs text-slate-400">%</span>
+                    <span className="text-stone-400">%</span>
                   </div>
                 )}
               </div>
@@ -308,27 +467,27 @@ export const DailyLogModal: React.FC<Props> = ({
                   type="text"
                   value={projectNote}
                   onChange={(e) => setProjectNote(e.target.value)}
-                  placeholder="针对该项目的具体产出成果或卡点备注..."
-                  className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none"
+                  placeholder="针对该项目的具体进展产出..."
+                  className="w-full px-2.5 py-1 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800"
                 />
               )}
             </div>
           )}
 
-          {/* Submit */}
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+          {/* Footer Submit */}
+          <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="px-4 py-2 rounded-xl text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
             >
               取消
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition"
+              className="px-5 py-2 rounded-xl text-xs font-semibold bg-stone-900 text-white dark:bg-white dark:text-stone-950 hover:opacity-90 shadow-sm transition"
             >
-              保存今日复盘与打卡
+              保存觉察打卡
             </button>
           </div>
         </form>

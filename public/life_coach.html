@@ -226,6 +226,16 @@
       </div>
 
       <div class="space-y-3 text-xs">
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <span class="font-medium text-slate-700 flex items-center gap-1.5">
+            <i data-lucide="mic" class="w-3.5 h-3.5 text-emerald-600"></i>
+            语音输入 (口述直接转为文字)
+          </span>
+          <button type="button" onclick="startVoiceInputStandalone()" id="voice-btn-standalone" class="px-2.5 py-1 rounded-lg bg-slate-900 text-white text-[11px] font-semibold hover:bg-slate-800">
+            点击开始录音
+          </button>
+        </div>
+
         <div>
           <label class="block font-semibold mb-1">今日核心高光 / 最大战果 *</label>
           <input type="text" id="log-highlight-input" placeholder="例如：完成SaaS定价页设计；晨跑5公里配速达标" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
@@ -606,9 +616,37 @@
       `).join('');
     }
 
-    function updateWheelVal(key, val) {
-      wheel[key] = parseFloat(val);
-      saveState();
+    function startVoiceInputStandalone() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert('当前浏览器未启用语音听写，请直接在文本框中输入，或使用 Chrome/Safari 浏览器。');
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'zh-CN';
+      const btn = document.getElementById('voice-btn-standalone');
+      btn.innerText = '🔴 正在倾听...';
+      btn.classList.add('bg-rose-500');
+
+      recognition.onresult = (e) => {
+        let transcript = '';
+        for (let i = 0; i < e.results.length; i++) {
+          transcript += e.results[i][0].transcript;
+        }
+        document.getElementById('log-highlight-input').value = transcript;
+      };
+
+      recognition.onend = () => {
+        btn.innerText = '点击开始录音';
+        btn.classList.remove('bg-rose-500');
+      };
+
+      recognition.onerror = () => {
+        btn.innerText = '点击开始录音';
+        btn.classList.remove('bg-rose-500');
+      };
+
+      recognition.start();
     }
 
     // Modals

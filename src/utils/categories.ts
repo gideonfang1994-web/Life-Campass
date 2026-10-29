@@ -97,6 +97,18 @@ export const DIMENSIONS_CONFIG: Record<ProjectCategory, DimensionMeta> = {
 
 export const CATEGORY_CONFIG = DIMENSIONS_CONFIG;
 
+export interface CategoryItem {
+  id: ProjectCategory;
+  name: string;
+  enName: string;
+}
+
+export const CATEGORIES: CategoryItem[] = (Object.keys(DIMENSIONS_CONFIG) as ProjectCategory[]).map((key) => ({
+  id: key,
+  name: DIMENSIONS_CONFIG[key].label,
+  enName: DIMENSIONS_CONFIG[key].enLabel,
+}));
+
 export const PRIORITY_CONFIG: Record<
   ProjectPriority,
   { label: string; badgeClass: string; dotClass: string }

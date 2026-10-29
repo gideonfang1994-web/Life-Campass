@@ -409,6 +409,241 @@ app.post('/api/coach/course-correction', async (req: Request, res: Response) => 
   }
 });
 
+// 6. Voice / Natural Language Reflection Parser API
+app.post('/api/coach/parse-reflection', async (req: Request, res: Response) => {
+  const { rawText } = req.body;
+
+  if (!rawText || typeof rawText !== 'string') {
+    return res.status(400).json({ error: 'rawText is required' });
+  }
+
+  const prompt = `请将用户通过语音输入或随笔倾诉的一段日常复盘内容，提炼并结构化为标准日志对象：
+用户原话：“${rawText}”
+
+必须以 JSON 格式输出，字段如下：
+{
+  "highlight": "今日最核心高光战果（1句话，凝练具体）",
+  "wins": ["微小胜利1", "微小胜利2"],
+  "friction": "遇到的阻力、分心或卡点反思（如无则留空）",
+  "energyLevel": 1到5的整数（根据语气与精力状态合理推测）,
+  "mood": "thriving" | "calm" | "focused" | "tired" | "anxious"（5选1）,
+  "coachTip": "人生教练针对这则记录给出的1句暖心而犀利的短评建议"
+}`;
+
+  if (!ai) {
+    return res.json({
+      highlight: rawText.slice(0, 40),
+      wins: ['完成了日常觉察与记录'],
+      friction: '',
+      energyLevel: 4,
+      mood: 'focused',
+      coachTip: '记录本身就是对生活的觉察与掌控，继续保持！'
+    });
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.3,
+      },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || '{}');
+    res.json(parsed);
+  } catch (err: any) {
+    console.error('Reflection parse error:', err);
+    res.json({
+      highlight: rawText.slice(0, 40),
+      wins: ['坚持完成了语音记录打卡'],
+      friction: '',
+      energyLevel: 4,
+      mood: 'focused',
+      coachTip: '每一次记录都是一次重新对齐人生的契机。'
+    });
+  }
+});
+
+// 马斯克 5X 极速目标拆解：第一性原理 + 五步工作法 + 5年倒逼1年
+app.post('/api/coach/musk-breakdown', async (req: Request, res: Response) => {
+  const { title, category, fiveYearVision, context } = req.body;
+
+  const prompt = `你现在是埃隆·马斯克（Elon Musk）的极限工程与第一性原理教练化身。
+你的使命：帮助用户将一个通常需要【5年】才能实现的宏伟目标，通过【第一性原理】和【马斯克五步工作法】强力压缩到【1年】内极限突破（实现 1 年完成 5 年的进度）！
+
+用户目标信息：
+- 目标名称: ${title || '未命名目标'}
+- 维度类别: ${category || 'career'}
+- 原始5年愿景: ${fiveYearVision || title}
+- 当前背景/资源: ${context || '个人全情投入，寻求极限破局'}
+
+马斯克核心思考方法：
+1. 第一性原理：把事情剥离到最基础的物理/底层事实，不依赖类比和“别人都是这么做的”。
+2. 五步工作法（The 5-Step Algorithm）：
+   ① 质疑并推翻每一个需求（Make requirements less dumb）
+   ② 极限删减无用环节（Delete the part or process）
+   ③ 简化与优化（Simplify or optimize，注意千万不要去优化根本不该存在的东西）
+   ④ 极速压缩迭代周期（Accelerate cycle time，将按季度缩短为按天验证）
+   ⑤ 自动化与杠杆锁定（Automate）
+
+请输出严格的 JSON 对象（不要包含任何 markdown 标记或额外解释）：
+{
+  "oneYearTarget": "倒逼到1年完成的量化硬核指标（极具张力与可行性）",
+  "fundamentalTruth": "剥离一切中间借口与常规假象后的底层物理/数学事实",
+  "deletedProcesses": [
+    "必须彻底删减的伪流程/伪需求1（例如：繁文缛节的PPT汇报与过早优化）",
+    "必须彻底删减的伪流程/伪需求2",
+    "必须彻底删减的伪流程/伪需求3"
+  ],
+  "coreBottleneck": "当前限制整体周转速度的唯一核心瓶颈（Rate-limiting step）",
+  "unconventionalPath": "避开传统慢速排队或线性累加的非常规非线性破局战术",
+  "milestones": [
+    {
+      "id": "q1",
+      "phase": "Q1",
+      "title": "Q1 极速破局：完成核心单点MVP与真实反馈闭环",
+      "targetDays": 30,
+      "verificationProof": "客观硬证据（如线上交易单/代码提交/体检指标）"
+    },
+    {
+      "id": "q2",
+      "phase": "Q2",
+      "title": "Q2 规模化与复制：打通第二战线",
+      "targetDays": 60,
+      "verificationProof": "可验证的数据或实体成果"
+    },
+    {
+      "id": "q3",
+      "phase": "Q3",
+      "title": "Q3 极限迭代：消除瓶颈，周转速度翻倍",
+      "targetDays": 90,
+      "verificationProof": "系统化周转率与产出报告"
+    },
+    {
+      "id": "q4",
+      "phase": "Q4",
+      "title": "Q4 达成5年级终局指标，构建壁垒与自动化",
+      "targetDays": 120,
+      "verificationProof": "年终终局验收指标与财务/成果审计"
+    }
+  ],
+  "muskDirective": "一句极具马斯克硬核风格的监督训令（直白、严苛、拒绝借口，命令其立刻行动）"
+}`;
+
+  if (!ai) {
+    return res.json({
+      oneYearTarget: `【1年倒逼指标】以单兵+极限杠杆，在12个月内完成【${title}】的本质跃迁，产出远超5年线性积累的硬核结果。`,
+      fundamentalTruth: '价值的物理本质是解决真实世界的不可逆摩擦，无须依赖冗长的组织层级与繁复的类比。',
+      deletedProcesses: [
+        '砍掉无验证的长篇市场调研与冗长PPT',
+        '砍掉过早优化与非核心架构封装',
+        '砍掉任何不产出交付物的讨论会议'
+      ],
+      coreBottleneck: '从想法到面对真实用户/物理世界的闭环反馈周期',
+      unconventionalPath: '通过小规模极速试错，48小时上线最小可用版本测试真实付费与生理反馈。',
+      milestones: [
+        { id: 'q1', phase: 'Q1', title: '完成物理原型并获得首批真实硬核验证', targetDays: 30, verificationProof: '可验证的公开链接或实物指标' },
+        { id: 'q2', phase: 'Q2', title: '去除全部阻力环节，建立自动化交付机制', targetDays: 60, verificationProof: '周转效率提升300%的数据记录' },
+        { id: 'q3', phase: 'Q3', title: '极限负荷测试与产能扩张', targetDays: 90, verificationProof: '关键输出指标翻倍' },
+        { id: 'q4', phase: 'Q4', title: '完成终局硬指标并实现系统自运转', targetDays: 120, verificationProof: '年终全面指标验收报告' }
+      ],
+      muskDirective: '马斯克监督令：如果一个想法需要5年，问问自己为什么不能在6个月内做完？今天就交付你的第一件粗糙但能跑的原型！'
+    });
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.4,
+      },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || '{}');
+    res.json(parsed);
+  } catch (err: any) {
+    console.error('Musk breakdown error:', err);
+    res.json({
+      oneYearTarget: `【1年倒逼】极限压缩：12个月内跑通【${title}】完整商业或生理闭环。`,
+      fundamentalTruth: '事物本质极其简单，复杂性都是人为制造的逃避机制。',
+      deletedProcesses: ['砍掉未经验证的前置准备', '砍掉多余形式主义', '砍掉空想规划'],
+      coreBottleneck: '交付物触达真实外部世界的反馈延迟',
+      unconventionalPath: '以终为始，倒推最小里程碑，48小时交付一版。',
+      milestones: [
+        { id: 'q1', phase: 'Q1', title: '首期硬核成果上线', targetDays: 30, verificationProof: '交付物链接' },
+        { id: 'q2', phase: 'Q2', title: '系统性破局与复制', targetDays: 60, verificationProof: '实测数据' },
+        { id: 'q3', phase: 'Q3', title: '高频迭代与瓶颈粉碎', targetDays: 90, verificationProof: '产出翻倍证据' },
+        { id: 'q4', phase: 'Q4', title: '年终5X成果交付', targetDays: 120, verificationProof: '全体验收报告' }
+      ],
+      muskDirective: '马斯克监督令：别为拖延找借口，立即砍掉非核心动作，24小时内交出下一份成果！'
+    });
+  }
+});
+
+// 马斯克 极限监督审计：识破“线性慢速陷阱”与“假努力”，发出硬核督导令
+app.post('/api/coach/musk-supervision', async (req: Request, res: Response) => {
+  const { goalTitle, currentProgress, actualWork, oneYearTarget, recentLogs } = req.body;
+
+  const prompt = `你现在是埃隆·马斯克（Elon Musk）化身的【极限监督官与生产力总工程师】。
+你的监督风格：
+- 冷酷、直白、严密、极度厌恶“假努力”和“形式主义”。
+- 如果用户只是在做些表面琐碎工作、做规划、看教程或打磨不重要的边角料，无情指出他正在掉进【5年线性慢速陷阱（Linear Trap）】！
+- 给出 5X 航向评分 (0-100)，评估当前速度状态，并下达一条不可推卸的【24小时马斯克监督令】。
+
+被监督的目标：
+- 目标: ${goalTitle || '极速战略目标'}
+- 1年倒逼指标: ${oneYearTarget || '1年完成5年进度'}
+- 当前声称进度: ${currentProgress || 0}%
+- 最近实际工作产出记录: ${actualWork || '无详细产出记录'}
+- 补充日志上下文: ${JSON.stringify(recentLogs || []).slice(0, 300)}
+
+请输出严格的 JSON 对象（不要附加其他文字）：
+{
+  "velocityScore": 85,
+  "paceEvaluation": "on_pace_5x", // 可选: ahead_of_5x(领先), on_pace_5x(在轨), lagging_risk(滞后风险), linear_trap(严重陷入假努力/线性陷阱)
+  "blockerAlert": "指出他目前最致命的时间黑洞或伪需求",
+  "ruthlessAudit": "一段约80字的马斯克风格冷酷审计：直切要害，剖析假努力",
+  "muskDirective": "严苛的【24小时执行令】：明确要求在未来24小时内必须拿出的具体交付物"
+}`;
+
+  if (!ai) {
+    return res.json({
+      velocityScore: 82,
+      paceEvaluation: 'on_pace_5x',
+      blockerAlert: '谨防把时间消耗在打磨次要排版与次要工具链上，核心交付物才是唯一衡量尺度。',
+      ruthlessAudit: '你的大方向正确，但仍保留了太多传统线性思维。你还在等什么完美时机？真实世界里没有完美，只有谁的迭代速度更快。',
+      muskDirective: '马斯克24小时督导令：砍掉今天的一切非紧急事务，在今晚睡前必须交付一件可以被外部检验的核心成果！'
+    });
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.3,
+      },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || '{}');
+    res.json(parsed);
+  } catch (err: any) {
+    console.error('Musk supervision error:', err);
+    res.json({
+      velocityScore: 78,
+      paceEvaluation: 'on_pace_5x',
+      blockerAlert: '注意避免陷入过度思考却迟迟不交付的线性陷阱。',
+      ruthlessAudit: '永远不要去优化一个根本不该存在的工作环节。审视你今天做的事，有哪一件是在假装忙碌？',
+      muskDirective: '马斯克监督令：今天结束前，拿出能直接验证用户痛点的最小交付物！'
+    });
+  }
+});
+
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
   const isDev = process.env.NODE_ENV !== 'production';

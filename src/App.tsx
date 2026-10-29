@@ -1,29 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { LifeProject, DailyLog, LifeWheelScores, RetrospectiveReport } from './types';
+import {
+  LifeProject,
+  DailyLog,
+  LifeWheelScores,
+  RetrospectiveReport,
+  PlanActualRecord,
+  ProjectCategory,
+  AcceleratedGoal,
+} from './types';
 import {
   INITIAL_PROJECTS,
   INITIAL_LOGS,
   INITIAL_WHEEL_SCORES,
   INITIAL_RETROSPECTIVE,
+  INITIAL_PLAN_ACTUAL_RECORDS,
+  INITIAL_ACCELERATED_GOALS,
 } from './data/initialData';
 import { Header, ActiveTab } from './components/Header';
-import { DashboardView } from './components/DashboardView';
+import { TodayOneThingView } from './components/TodayOneThingView';
+import { MuskGoalAccelerationView } from './components/MuskGoalAccelerationView';
 import { DimensionHubView } from './components/DimensionHubView';
-import { ProjectsListView } from './components/ProjectsListView';
-import { LogsTimelineView } from './components/LogsTimelineView';
-import { RetrospectiveView } from './components/RetrospectiveView';
-import { CoachChatView } from './components/CoachChatView';
+import { PlanVsActualView } from './components/PlanVsActualView';
+import { ReviewAndCoachView } from './components/ReviewAndCoachView';
 import { ProjectModal } from './components/ProjectModal';
 import { DailyLogModal } from './components/DailyLogModal';
 import { ProjectDiagnosisModal } from './components/ProjectDiagnosisModal';
 import { CourseCorrectionModal } from './components/CourseCorrectionModal';
 import { ZenFocusTimer } from './components/ZenFocusTimer';
 import { exportStandaloneHtmlFile } from './utils/htmlExporter';
-import { ProjectCategory } from './types';
 
 export default function App() {
   // Navigation
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('today');
 
   // Core State with LocalStorage persistence
   const [projects, setProjects] = useState<LifeProject[]>(() => {
@@ -74,6 +82,30 @@ export default function App() {
     return [INITIAL_RETROSPECTIVE];
   });
 
+  const [planActualRecords, setPlanActualRecords] = useState<PlanActualRecord[]>(() => {
+    const saved = localStorage.getItem('life_coach_plan_actual');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_PLAN_ACTUAL_RECORDS;
+  });
+
+  const [acceleratedGoals, setAcceleratedGoals] = useState<AcceleratedGoal[]>(() => {
+    const saved = localStorage.getItem('life_coach_accelerated_goals');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_ACCELERATED_GOALS;
+  });
+
   // Sync to LocalStorage
   useEffect(() => {
     localStorage.setItem('life_coach_projects', JSON.stringify(projects));
@@ -90,6 +122,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('life_coach_retrospectives', JSON.stringify(retrospectives));
   }, [retrospectives]);
+
+  useEffect(() => {
+    localStorage.setItem('life_coach_plan_actual', JSON.stringify(planActualRecords));
+  }, [planActualRecords]);
+
+  useEffect(() => {
+    localStorage.setItem('life_coach_accelerated_goals', JSON.stringify(acceleratedGoals));
+  }, [acceleratedGoals]);
 
   // Modal States
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -222,6 +262,32 @@ export default function App() {
     setActiveTab('coach');
   };
 
+  // Plan vs Actual Record Operations
+  const handleAddPlanActual = (rec: PlanActualRecord) => {
+    setPlanActualRecords([rec, ...planActualRecords]);
+  };
+
+  const handleUpdatePlanActual = (rec: PlanActualRecord) => {
+    setPlanActualRecords(planActualRecords.map((r) => (r.id === rec.id ? rec : r)));
+  };
+
+  const handleDeletePlanActual = (id: string) => {
+    setPlanActualRecords(planActualRecords.filter((r) => r.id !== id));
+  };
+
+  // Accelerated Goals Operations (Musk 5X Engine)
+  const handleAddGoal = (goal: AcceleratedGoal) => {
+    setAcceleratedGoals([goal, ...acceleratedGoals]);
+  };
+
+  const handleUpdateGoal = (goal: AcceleratedGoal) => {
+    setAcceleratedGoals(acceleratedGoals.map((g) => (g.id === goal.id ? goal : g)));
+  };
+
+  const handleDeleteGoal = (id: string) => {
+    setAcceleratedGoals(acceleratedGoals.filter((g) => g.id !== id));
+  };
+
   // Retrospective
   const handleSaveRetrospective = (report: RetrospectiveReport) => {
     setRetrospectives([report, ...retrospectives]);
@@ -234,6 +300,8 @@ export default function App() {
       logs,
       wheelScores,
       retrospectives,
+      planActualRecords,
+      acceleratedGoals,
       exportedAt: new Date().toISOString(),
     };
     const blob = new Blob([JSON.stringify(fullBackup, null, 2)], {
@@ -248,7 +316,7 @@ export default function App() {
   };
 
   const handleExportHtml = () => {
-    exportStandaloneHtmlFile(projects, logs, wheelScores, retrospectives);
+    exportStandaloneHtmlFile(projects, logs, wheelScores, retrospectives, acceleratedGoals);
   };
 
   const handleImportData = (jsonData: string) => {
@@ -265,6 +333,12 @@ export default function App() {
     if (parsed.retrospectives && Array.isArray(parsed.retrospectives)) {
       setRetrospectives(parsed.retrospectives);
     }
+    if (parsed.planActualRecords && Array.isArray(parsed.planActualRecords)) {
+      setPlanActualRecords(parsed.planActualRecords);
+    }
+    if (parsed.acceleratedGoals && Array.isArray(parsed.acceleratedGoals)) {
+      setAcceleratedGoals(parsed.acceleratedGoals);
+    }
     alert('备份数据导入成功！');
   };
 
@@ -273,18 +347,20 @@ export default function App() {
     setLogs(INITIAL_LOGS);
     setWheelScores(INITIAL_WHEEL_SCORES);
     setRetrospectives([INITIAL_RETROSPECTIVE]);
+    setPlanActualRecords(INITIAL_PLAN_ACTUAL_RECORDS);
+    setAcceleratedGoals(INITIAL_ACCELERATED_GOALS);
     localStorage.removeItem('life_coach_chat_messages');
-    alert('已成功重置为初始种子演示数据。');
+    alert('已成功重置为精选种子演示数据。');
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
+    <div className="min-h-screen bg-stone-50/70 dark:bg-stone-950 text-stone-900 dark:text-stone-100 flex flex-col font-sans transition-colors text-base antialiased">
       {/* Global Header */}
       <Header
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onOpenNewLog={() => setIsDailyLogModalOpen(true)}
-        onOpenNewProject={handleOpenNewProject}
+        onOpenNewProject={() => handleOpenNewProject()}
         onExportData={handleExportData}
         onExportHtml={handleExportHtml}
         onImportData={handleImportData}
@@ -293,21 +369,33 @@ export default function App() {
 
       {/* Main View Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {activeTab === 'dashboard' && (
-          <DashboardView
+        {activeTab === 'today' && (
+          <TodayOneThingView
             projects={projects}
             logs={logs}
-            wheelScores={wheelScores}
-            onUpdateProject={handleUpdateProject}
-            onDeleteProject={handleDeleteProject}
-            onDiagnoseProject={handleDiagnoseProject}
-            onOpenCoachChat={handleOpenCoachChat}
-            onEditProject={handleEditProject}
-            onOpenNewProject={() => handleOpenNewProject()}
+            planActualRecords={planActualRecords}
+            acceleratedGoals={acceleratedGoals}
+            onAddPlanActual={handleAddPlanActual}
+            onUpdatePlanActual={handleUpdatePlanActual}
             onOpenNewLog={() => setIsDailyLogModalOpen(true)}
-            onUpdateWheelScores={setWheelScores}
-            onNavigateToProjects={() => setActiveTab('dimensions')}
-            onNavigateToReview={() => setActiveTab('retrospective')}
+            onOpenFocusTimer={handleStartFocusTimer}
+            onNavigateToDimensions={() => setActiveTab('dimensions')}
+            onNavigateToGoalAcceleration={() => setActiveTab('goal_acceleration')}
+            onNavigateToCoach={(prompt) => {
+              setActiveTab('coach');
+            }}
+          />
+        )}
+
+        {activeTab === 'goal_acceleration' && (
+          <MuskGoalAccelerationView
+            goals={acceleratedGoals}
+            recentLogs={logs}
+            planActualRecords={planActualRecords}
+            onAddGoal={handleAddGoal}
+            onUpdateGoal={handleUpdateGoal}
+            onDeleteGoal={handleDeleteGoal}
+            onOpenCoachChat={() => setActiveTab('coach')}
           />
         )}
 
@@ -327,30 +415,27 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'logs' && (
-          <LogsTimelineView
-            logs={logs}
+        {activeTab === 'plan_actual' && (
+          <PlanVsActualView
+            records={planActualRecords}
             projects={projects}
-            onOpenNewLog={() => setIsDailyLogModalOpen(true)}
-            onDeleteLog={handleDeleteLog}
+            onAddRecord={handleAddPlanActual}
+            onUpdateRecord={handleUpdatePlanActual}
+            onDeleteRecord={handleDeletePlanActual}
+            onOpenCoachChat={() => {
+              setActiveTab('coach');
+            }}
           />
         )}
 
-        {activeTab === 'retrospective' && (
-          <RetrospectiveView
+        {activeTab === 'coach' && (
+          <ReviewAndCoachView
             projects={projects}
             logs={logs}
             wheelScores={wheelScores}
             retrospectives={retrospectives}
             onSaveRetrospective={handleSaveRetrospective}
-          />
-        )}
-
-        {activeTab === 'coach' && (
-          <CoachChatView
-            projects={projects}
-            recentLogs={logs}
-            wheelScores={wheelScores}
+            onUpdateWheelScores={setWheelScores}
             activeProject={coachActiveProject}
             onClearActiveProject={() => setCoachActiveProject(null)}
           />
