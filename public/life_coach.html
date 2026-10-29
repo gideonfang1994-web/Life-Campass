@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeCompass · 人生教练 | 单文件独立网页版</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .spin-slow { animation: spinSlow 25s linear infinite; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; color: black !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-md">
+          <i data-lucide="compass" class="w-5 h-5 spin-slow"></i>
+        </div>
+        <div>
+          <span class="font-extrabold text-base tracking-tight text-slate-900 flex items-center gap-1.5">
+            LifeCompass
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800">
+              单文件 HTML 独立版
+            </span>
+          </span>
+          <span class="text-[10px] text-slate-400 block sm:inline">监督 · 记录 · 分析 · 复盘 · 进化</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="window.print()" class="no-print px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1.5 transition">
+          <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+          打印/导出PDF
+        </button>
+        <button onclick="openNewLogModal()" class="no-print px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow transition">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          记一笔打卡
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <div class="no-print max-w-6xl mx-auto px-4 sm:px-6 pt-4 w-full">
+    <div class="flex items-center gap-1.5 bg-slate-200/70 p-1 rounded-2xl w-fit">
+      <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-900 shadow-sm transition">
+        全景中枢
+      </button>
+      <button onclick="switchTab('projects')" id="tab-projects" class="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+        四大维度 (工作·健康·财富·认知)
+      </button>
+      <button onclick="switchTab('wheel')" id="tab-wheel" class="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+        生命之轮
+      </button>
+      <button onclick="switchTab('logs')" id="tab-logs" class="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+        觉察日志
+      </button>
+      <button onclick="switchTab('retro')" id="tab-retro" class="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+        战略复盘
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 flex-1">
+    
+    <!-- Tab 1: Dashboard -->
+    <div id="view-dashboard" class="space-y-6">
+      <!-- Banner -->
+      <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white rounded-3xl p-6 sm:p-8 shadow-sm">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300">
+            🌟 全天候人生项目监督中枢
+          </span>
+          <span class="text-xs text-slate-400" id="current-date-label"></span>
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
+          把有限的心力，聚焦在不可妥协的进化上
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed mb-6">
+          当前已监督管理多个关键生活项目。通过每日微小战果确认与防拖延微行动锚点，持续保持前进动能。
+        </p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+            <div class="text-[11px] text-slate-400">活跃推进项目</div>
+            <div class="text-xl font-bold text-white mt-1" id="dash-active-count">0</div>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+            <div class="text-[11px] text-slate-400">冲刺攻坚主线</div>
+            <div class="text-xl font-bold text-orange-400 mt-1" id="dash-sprint-count">0</div>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+            <div class="text-[11px] text-slate-400">生命之轮均分</div>
+            <div class="text-xl font-bold text-emerald-400 mt-1" id="dash-wheel-avg">7.5</div>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+            <div class="text-[11px] text-slate-400">累计觉察打卡</div>
+            <div class="text-xl font-bold text-blue-400 mt-1" id="dash-log-count">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Micro-Actions Checklist & Focus Projects -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div class="lg:col-span-5 bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <i data-lucide="zap" class="w-4 h-4 text-emerald-600 fill-emerald-600"></i>
+              今日防拖延微行动锚点 (≤5分钟)
+            </h3>
+          </div>
+          <p class="text-xs text-slate-500">点击可直接勾选完成今日第一击动作</p>
+          <div id="micro-actions-list" class="space-y-2"></div>
+        </div>
+
+        <div class="lg:col-span-7 bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <i data-lucide="target" class="w-4 h-4 text-emerald-600"></i>
+              冲刺主线项目卡片
+            </h3>
+            <button onclick="switchTab('projects')" class="text-xs font-semibold text-emerald-600 hover:underline">
+              查看全部项目 &rarr;
+            </button>
+          </div>
+          <div id="dash-projects-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Projects Matrix -->
+    <div id="view-projects" class="space-y-6 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+            <i data-lucide="folder-kanban" class="w-6 h-6 text-emerald-600"></i>
+            人生多维项目监督矩阵
+          </h2>
+          <p class="text-xs text-slate-500 mt-1">监督关键生命维度：事业、健康、财富、认知、家庭与热爱</p>
+        </div>
+        <button onclick="openNewProjectModal()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow transition">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          开启新项目
+        </button>
+      </div>
+
+      <div id="all-projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </div>
+
+    <!-- Tab 3: Life Wheel -->
+    <div id="view-wheel" class="space-y-6 hidden">
+      <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+        <h2 class="text-2xl font-extrabold text-slate-900 mb-1 flex items-center gap-2">
+          <i data-lucide="life-buoy" class="w-6 h-6 text-emerald-600"></i>
+          生命之轮平衡度透视 (8维度)
+        </h2>
+        <p class="text-xs text-slate-500 mb-6">人生如车轮，各维度越充盈均衡，运转阻力越小</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          <div class="md:col-span-7 flex justify-center">
+            <svg id="wheel-svg" width="340" height="340" class="overflow-visible select-none"></svg>
+          </div>
+          <div class="md:col-span-5 space-y-3" id="wheel-sliders-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Daily Logs -->
+    <div id="view-logs" class="space-y-6 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+            <i data-lucide="calendar" class="w-6 h-6 text-emerald-600"></i>
+            每日觉察与打卡日志
+          </h2>
+          <p class="text-xs text-slate-500 mt-1">记录精力流转、确认微小胜利、反思卡点阻抗</p>
+        </div>
+        <button onclick="openNewLogModal()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow transition">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          记录今日复盘
+        </button>
+      </div>
+
+      <div id="logs-timeline" class="space-y-4"></div>
+    </div>
+
+    <!-- Tab 5: Retrospective -->
+    <div id="view-retro" class="space-y-6 hidden">
+      <div class="bg-gradient-to-r from-emerald-900 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-sm">
+        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
+          周期性战略复盘报告
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed mb-4">
+          审视核心成果、暴露假努力与能量漏洞，锚定下周期的不可妥协战略指令。
+        </p>
+      </div>
+
+      <div id="retro-content-card" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+          <h3 class="text-xl font-bold text-slate-900" id="retro-title">第43周·人生进化战略复盘简报</h3>
+          <button onclick="window.print()" class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1.5">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i> 打印复盘简报
+          </button>
+        </div>
+        <div id="retro-markdown-body" class="prose max-w-none text-xs sm:text-sm text-slate-700 leading-relaxed space-y-4"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- New Log Modal -->
+  <div id="log-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-900">今日觉察与项目打卡</h3>
+        <button onclick="closeNewLogModal()" class="text-slate-400 hover:text-slate-600">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold mb-1">今日核心高光 / 最大战果 *</label>
+          <input type="text" id="log-highlight-input" placeholder="例如：完成SaaS定价页设计；晨跑5公里配速达标" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">精力电量 (1-5)</label>
+          <input type="range" id="log-energy-input" min="1" max="5" value="4" class="w-full accent-emerald-600">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">微小胜利 (Micro-wins)</label>
+          <input type="text" id="log-wins-input" placeholder="例如：无手机专注工作2小时" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">遇到的阻抗或反思</label>
+          <input type="text" id="log-friction-input" placeholder="例如：下午精神涣散，看了短视频20分钟" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+      </div>
+
+      <div class="pt-2 flex justify-end gap-2 border-t border-slate-100">
+        <button onclick="closeNewLogModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">取消</button>
+        <button onclick="saveLog()" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white">保存打卡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Project Modal -->
+  <div id="project-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-900">开启新的人生项目</h3>
+        <button onclick="closeNewProjectModal()" class="text-slate-400 hover:text-slate-600">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold mb-1">项目名称 *</label>
+          <input type="text" id="proj-title-input" placeholder="例如：半马跑进1h55m、资产自动定投系统" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold mb-1">生命维度</label>
+            <select id="proj-cat-input" class="w-full px-2 py-2 rounded-xl border border-slate-200">
+              <option value="career">💼 事业与技能</option>
+              <option value="health">🏃 身体与健康</option>
+              <option value="wealth">💰 财富与自由</option>
+              <option value="mindset">🧠 心智与认知</option>
+              <option value="relationship">❤️ 关系与家庭</option>
+              <option value="creation">🎨 创造与热爱</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">优先级</label>
+            <select id="proj-pri-input" class="w-full px-2 py-2 rounded-xl border border-slate-200">
+              <option value="high">🔴 高优主线</option>
+              <option value="medium">🟡 稳进支线</option>
+              <option value="low">⚪ 低频探索</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">愿景描述</label>
+          <textarea id="proj-desc-input" rows="2" placeholder="为什么要做？达成后的具体画面是什么？" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none"></textarea>
+        </div>
+        <div>
+          <label class="block font-semibold text-emerald-700 mb-1">⚡ 下个最小可执行行动 (≤5分钟)</label>
+          <input type="text" id="proj-action-input" placeholder="例如：找出跑鞋放在玄关、打开空白文档写100字" class="w-full px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50/50 focus:outline-none">
+        </div>
+      </div>
+
+      <div class="pt-2 flex justify-end gap-2 border-t border-slate-100">
+        <button onclick="closeNewProjectModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">取消</button>
+        <button onclick="saveProject()" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white">确认创建</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-auto border-t border-slate-200 py-6 text-center text-xs text-slate-400 no-print">
+    LifeCompass · 人生教练 | 单文件独立网页版 · 离线可用 · 数据保存在本地
+  </footer>
+
+  <script>
+    // Initial Seed Data
+    const DEFAULT_PROJECTS = [
+      {
+        id: 'p1',
+        title: '独立SaaS产品：海外市场从0到1上线',
+        category: 'career',
+        priority: 'high',
+        status: 'sprinting',
+        progress: 65,
+        description: '打造生产力微工具，跑通支付链路并上线ProductHunt',
+        nextMicroAction: '录制20秒产品核心交互GIF放在Landing page首屏',
+        milestones: ['核心交互原型闭环', '接入Stripe支付计费', '撰写ProductHunt推文', '达成前10名付费用户']
+      },
+      {
+        id: 'p2',
+        title: '半程马拉松 1小时55分 突破挑战',
+        category: 'health',
+        priority: 'high',
+        status: 'on_track',
+        progress: 50,
+        description: '低心率有氧MAF180跑练，重塑心肺耐力，完赛个人PB',
+        nextMicroAction: '今晚把跑鞋放在玄关，明晨6:30完成5公里慢跑热身',
+        milestones: ['连续3周每周3次打卡', '完成14公里配速拉练', '完成18公里模拟测试', '赛事安全完赛PB']
+      },
+      {
+        id: 'p3',
+        title: '构建「睡后收入」资产定投与现金流系统',
+        category: 'wealth',
+        priority: 'medium',
+        status: 'on_track',
+        progress: 80,
+        description: '梳理被动收入与开销，建立核心宽基指数定投自动化',
+        nextMicroAction: '核对上月账单，取消2项闲置云服务订阅',
+        milestones: ['梳理净资产底账', '设立紧急备用金账户', '设定发薪日自动定投', '年度财务复盘']
+      },
+      {
+        id: 'p4',
+        title: '心智升维：深度精读6本底层思维模型经典',
+        category: 'mindset',
+        priority: 'medium',
+        status: 'needs_attention',
+        progress: 30,
+        description: '告别短视频信息碎片，每周深度阅读3小时卡片笔记',
+        nextMicroAction: '读《原则》第3章5页，并在卡片上摘抄1条原则',
+        milestones: ['精读《穷查理宝典》', '精读《原则》决策清单', '精读《纳瓦尔宝典》', '输出年度成长总结']
+      },
+      {
+        id: 'p5',
+        title: '每周高质量无手机家庭陪伴日',
+        category: 'relationship',
+        priority: 'high',
+        status: 'on_track',
+        progress: 75,
+        description: '每周日设定4小时数字断联陪伴时间，深度交流增进感情',
+        nextMicroAction: '提前预约周日野餐露营地的车位',
+        milestones: ['连续4周周日无手机陪伴', '策划秋日短途自驾旅行', '整理年度家庭画册']
+      }
+    ];
+
+    const DEFAULT_LOGS = [
+      {
+        id: 'l1',
+        date: '2026-10-28',
+        highlight: '完成了SaaS产品定价方案的比较矩阵与文案定稿',
+        energyLevel: 4,
+        wins: '连续专注工作2.5小时；晚上陪伴家人散步30分钟',
+        friction: '下午有一过性的疲乏，咖啡因摄入略晚'
+      },
+      {
+        id: 'l2',
+        date: '2026-10-27',
+        highlight: '早晨跑步心率控制极佳，下午集中攻克了计费链路',
+        energyLevel: 4,
+        wins: '查阅文档搞定复杂海外税率逻辑',
+        friction: '阅读计划被临时邮件打断'
+      }
+    ];
+
+    const DEFAULT_WHEEL = {
+      career: 8,
+      health: 7.5,
+      wealth: 7,
+      mindset: 6,
+      relationship: 8,
+      family: 7.5,
+      creation: 6.5,
+      peace: 7
+    };
+
+    // State
+    let projects = JSON.parse(localStorage.getItem('lc_standalone_projects')) || DEFAULT_PROJECTS;
+    let logs = JSON.parse(localStorage.getItem('lc_standalone_logs')) || DEFAULT_LOGS;
+    let wheel = JSON.parse(localStorage.getItem('lc_standalone_wheel')) || DEFAULT_WHEEL;
+
+    function saveState() {
+      localStorage.setItem('lc_standalone_projects', JSON.stringify(projects));
+      localStorage.setItem('lc_standalone_logs', JSON.stringify(logs));
+      localStorage.setItem('lc_standalone_wheel', JSON.stringify(wheel));
+      render();
+    }
+
+    // Switch Tab
+    function switchTab(tabId) {
+      ['dashboard', 'projects', 'wheel', 'logs', 'retro'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        const btn = document.getElementById(`tab-${t}`);
+        btn.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+        btn.classList.add('text-slate-600');
+      });
+      document.getElementById(`view-${tabId}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-${tabId}`);
+      activeBtn.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+      activeBtn.classList.remove('text-slate-600');
+      if (tabId === 'wheel') renderWheel();
+      lucide.createIcons();
+    }
+
+    // Render Everything
+    function render() {
+      document.getElementById('current-date-label').innerText = new Date().toLocaleDateString('zh-CN', {
+        month: 'long', day: 'numeric', weekday: 'long'
+      });
+
+      // Dashboard Counters
+      const active = projects.filter(p => p.status !== 'completed').length;
+      const sprinting = projects.filter(p => p.status === 'sprinting').length;
+      const wheelVals = Object.values(wheel);
+      const wheelAvg = (wheelVals.reduce((a, b) => a + b, 0) / wheelVals.length).toFixed(1);
+
+      document.getElementById('dash-active-count').innerText = active;
+      document.getElementById('dash-sprint-count').innerText = sprinting;
+      document.getElementById('dash-wheel-avg').innerText = wheelAvg;
+      document.getElementById('dash-log-count').innerText = logs.length;
+
+      // Micro actions checklist
+      const microActionsEl = document.getElementById('micro-actions-list');
+      microActionsEl.innerHTML = projects.map(p => `
+        <div class="p-2.5 rounded-2xl border border-emerald-100 bg-emerald-50/40 flex items-start gap-2.5 text-xs">
+          <input type="checkbox" class="mt-0.5 accent-emerald-600 rounded">
+          <div class="flex-1">
+            <div class="font-bold text-slate-800">${p.title}</div>
+            <div class="text-slate-600 mt-0.5">${p.nextMicroAction}</div>
+          </div>
+        </div>
+      `).join('');
+
+      // Dashboard sprint projects
+      const dashProjectsEl = document.getElementById('dash-projects-grid');
+      dashProjectsEl.innerHTML = projects.slice(0, 4).map(p => renderProjectCardHtml(p)).join('');
+
+      // All projects grid
+      const allProjectsEl = document.getElementById('all-projects-grid');
+      allProjectsEl.innerHTML = projects.map(p => renderProjectCardHtml(p)).join('');
+
+      // Logs timeline
+      const logsTimelineEl = document.getElementById('logs-timeline');
+      logsTimelineEl.innerHTML = logs.map(l => `
+        <div class="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-2 text-xs">
+          <div class="flex items-center justify-between font-bold">
+            <span class="text-slate-900">${l.date}</span>
+            <span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold">⚡ 精力电量 ${l.energyLevel}/5</span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-emerald-50/60 font-semibold text-emerald-900">
+            🎯 高光战果：${l.highlight}
+          </div>
+          ${l.wins ? `<div class="text-slate-700">🏆 确认小胜：${l.wins}</div>` : ''}
+          ${l.friction ? `<div class="text-slate-500">⚠️ 阻抗反思：${l.friction}</div>` : ''}
+        </div>
+      `).join('');
+
+      // Retrospective content
+      document.getElementById('retro-markdown-body').innerHTML = `
+        <div class="p-4 rounded-2xl bg-emerald-50 text-emerald-950 font-medium">
+          <h4 class="font-bold mb-1">🌟 核心成果与动量识别 (Wins & Momentum)</h4>
+          <p>主线【独立SaaS产品】完成核心技术攻坚，从设计迈入可交付阶段。身体底座坚韧，完成了长距离拉练，为高强度脑力输出提供了稳定的生理能量支持。</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-amber-50 text-amber-950 font-medium">
+          <h4 class="font-bold mb-1">⚠️ 能量泄漏与卡点剖析 (Bottlenecks)</h4>
+          <p>【深度阅读】项目出现连续跳票。根源在于将其预设为大块时间专属，一旦白天加班晚上就放弃。降维为“床头翻阅3页纸”的微习惯即可破局。</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-slate-900 text-white">
+          <h4 class="font-bold text-emerald-400 mb-1">🎯 下周 3 大不可妥协战略指令</h4>
+          <ol class="list-decimal pl-5 space-y-1">
+            <li>SaaS主线：录制演示视频并配置在首屏，开放内测申请。</li>
+            <li>身体防线：周中完成2次5K匀速跑，确保睡眠时长不低于7小时15分。</li>
+            <li>心智重启：利用通勤或晨起碎片时间完成《原则》第二章阅读。</li>
+          </ol>
+        </div>
+        <blockquote class="border-l-4 border-emerald-500 pl-4 py-1 italic text-slate-600">
+          “卓越不是偶尔的大动作，而是对微小节奏的日日守护。” — 人生教练箴言
+        </blockquote>
+      `;
+
+      renderWheel();
+      lucide.createIcons();
+    }
+
+    function renderProjectCardHtml(p) {
+      const statusLabels = {
+        sprinting: '🔥 冲刺攻坚',
+        on_track: '🌿 稳步推进',
+        needs_attention: '⚠️ 遇阻卡点',
+        completed: '🏆 圆满达成'
+      };
+      return `
+        <div class="p-4 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between space-y-3">
+          <div>
+            <div class="flex items-center justify-between text-[11px] mb-1.5">
+              <span class="px-2 py-0.5 rounded-full font-semibold bg-blue-50 text-blue-700">${p.category}</span>
+              <span class="font-bold text-slate-700">${statusLabels[p.status] || p.status}</span>
+            </div>
+            <h4 class="font-bold text-sm text-slate-900">${p.title}</h4>
+            <p class="text-xs text-slate-500 mt-1 line-clamp-2">${p.description || ''}</p>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
+              <span>完成度</span>
+              <span>${p.progress}%</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div class="bg-emerald-600 h-full rounded-full" style="width: ${p.progress}%"></div>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-700 font-medium">
+              ⚡ 最小第一击: ${p.nextMicroAction}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render Life Wheel SVG
+    function renderWheel() {
+      const dimensions = [
+        { key: 'career', label: '事业技能' },
+        { key: 'health', label: '身体健康' },
+        { key: 'wealth', label: '财务自由' },
+        { key: 'mindset', label: '思维认知' },
+        { key: 'relationship', label: '亲密关系' },
+        { key: 'family', label: '家庭亲情' },
+        { key: 'creation', label: '创造热爱' },
+        { key: 'peace', label: '精神宁静' },
+      ];
+
+      const svg = document.getElementById('wheel-svg');
+      const size = 340;
+      const center = size / 2;
+      const radius = size * 0.38;
+      const numAxes = dimensions.length;
+
+      const getCoord = (idx, val) => {
+        const angle = (Math.PI * 2 * idx) / numAxes - Math.PI / 2;
+        const r = (val / 10) * radius;
+        return { x: center + r * Math.cos(angle), y: center + r * Math.sin(angle) };
+      };
+
+      let circlesHtml = [2, 4, 6, 8, 10].map(lvl => {
+        const r = (lvl / 10) * radius;
+        return `<circle cx="${center}" cy="${center}" r="${r}" fill="none" stroke="#e2e8f0" stroke-dasharray="${lvl === 10 ? '' : '3 3'}" stroke-width="${lvl === 10 ? 1.5 : 1}" />`;
+      }).join('');
+
+      let spokesHtml = dimensions.map((d, i) => {
+        const { x, y } = getCoord(i, 10);
+        return `<line x1="${center}" y1="${center}" x2="${x}" y2="${y}" stroke="#cbd5e1" stroke-width="1" />`;
+      }).join('');
+
+      const points = dimensions.map((d, i) => {
+        const { x, y } = getCoord(i, wheel[d.key] || 1);
+        return `${x},${y}`;
+      }).join(' ');
+
+      const polygonHtml = `<polygon points="${points}" fill="#10b981" fill-opacity="0.35" stroke="#059669" stroke-width="2.5" />`;
+
+      const labelsHtml = dimensions.map((d, i) => {
+        const { x, y } = getCoord(i, 11.8);
+        const pt = getCoord(i, wheel[d.key] || 1);
+        return `
+          <circle cx="${pt.x}" cy="${pt.y}" r="4" fill="#059669" stroke="#fff" stroke-width="2" />
+          <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600" fill="#475569">
+            ${d.label} ${wheel[d.key]}
+          </text>
+        `;
+      }).join('');
+
+      svg.innerHTML = circlesHtml + spokesHtml + polygonHtml + labelsHtml;
+
+      // Render sliders
+      const slidersEl = document.getElementById('wheel-sliders-container');
+      slidersEl.innerHTML = dimensions.map(d => `
+        <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
+          <span class="font-bold text-slate-700">${d.label}</span>
+          <div class="flex items-center gap-2">
+            <input type="range" min="1" max="10" step="0.5" value="${wheel[d.key]}" oninput="updateWheelVal('${d.key}', this.value)" class="w-24 accent-emerald-600">
+            <span class="font-extrabold w-6 text-right">${wheel[d.key]}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateWheelVal(key, val) {
+      wheel[key] = parseFloat(val);
+      saveState();
+    }
+
+    // Modals
+    function openNewLogModal() {
+      document.getElementById('log-modal').classList.remove('hidden');
+      document.getElementById('log-modal').classList.add('flex');
+    }
+    function closeNewLogModal() {
+      document.getElementById('log-modal').classList.add('hidden');
+      document.getElementById('log-modal').classList.remove('flex');
+    }
+    function saveLog() {
+      const highlight = document.getElementById('log-highlight-input').value.trim();
+      if (!highlight) return;
+      const newLog = {
+        id: 'l-' + Date.now(),
+        date: new Date().toISOString().split('T')[0],
+        highlight,
+        energyLevel: parseInt(document.getElementById('log-energy-input').value),
+        wins: document.getElementById('log-wins-input').value.trim(),
+        friction: document.getElementById('log-friction-input').value.trim()
+      };
+      logs.unshift(newLog);
+      closeNewLogModal();
+      document.getElementById('log-highlight-input').value = '';
+      saveState();
+    }
+
+    function openNewProjectModal() {
+      document.getElementById('project-modal').classList.remove('hidden');
+      document.getElementById('project-modal').classList.add('flex');
+    }
+    function closeNewProjectModal() {
+      document.getElementById('project-modal').classList.add('hidden');
+      document.getElementById('project-modal').classList.remove('flex');
+    }
+    function saveProject() {
+      const title = document.getElementById('proj-title-input').value.trim();
+      if (!title) return;
+      const newProj = {
+        id: 'p-' + Date.now(),
+        title,
+        category: document.getElementById('proj-cat-input').value,
+        priority: document.getElementById('proj-pri-input').value,
+        status: 'on_track',
+        progress: 0,
+        description: document.getElementById('proj-desc-input').value.trim(),
+        nextMicroAction: document.getElementById('proj-action-input').value.trim() || '制定前5分钟启动计划'
+      };
+      projects.unshift(newProj);
+      closeNewProjectModal();
+      document.getElementById('proj-title-input').value = '';
+      saveState();
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      render();
+    });
+  </script>
+</body>
+</html>

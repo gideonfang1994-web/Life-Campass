@@ -1,0 +1,6 @@
+{
+  "name": "LifeCompass · 人生教练",
+  "description": "全方位人生项目监督、记录追踪、深度复盘与AI智能教练系统，助你掌控生活节奏，实现持续进化。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
