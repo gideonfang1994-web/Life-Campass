@@ -65,32 +65,32 @@ export const Header: React.FC<Props> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border-b border-stone-200/80 dark:border-stone-800 transition-colors">
+      <header className="sticky top-0 z-40 bg-white/95 dark:bg-stone-900/95 backdrop-blur-md border-b border-stone-200/80 dark:border-stone-800 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-18 gap-4 py-2">
+          <div className="flex items-center justify-between h-14 sm:h-16 gap-3">
             {/* Logo and Brand */}
             <div
               onClick={() => onTabChange('today')}
-              className="flex items-center gap-3 cursor-pointer shrink-0"
+              className="flex items-center gap-2.5 cursor-pointer shrink-0"
             >
-              <div className="w-10 h-10 rounded-2xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 flex items-center justify-center shadow-md">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 flex items-center justify-center shadow-md">
                 <Compass className="w-5 h-5 animate-spin-slow" />
               </div>
               <div>
-                <span className="font-extrabold text-lg tracking-tight text-stone-900 dark:text-white flex items-center gap-2">
+                <span className="font-extrabold text-base sm:text-lg tracking-tight text-stone-900 dark:text-white flex items-center gap-1.5">
                   LifeCompass
-                  <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
+                  <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
                     人生教练
                   </span>
                 </span>
-                <span className="hidden sm:block text-xs text-stone-400 font-medium">
+                <span className="hidden lg:block text-xs text-stone-400 font-medium">
                   聚焦唯一要事 · 构建无许可杠杆 · 消除假努力
                 </span>
               </div>
             </div>
 
-            {/* Desktop Navigation Tabs */}
-            <nav className="hidden md:flex items-center gap-1.5 bg-stone-100/80 dark:bg-stone-800/80 p-1.5 rounded-2xl border border-stone-200/60 dark:border-stone-700/60">
+            {/* Desktop Center Navigation Bar */}
+            <nav className="hidden md:flex items-center gap-1 p-1 bg-stone-100/90 dark:bg-stone-800/90 rounded-2xl border border-stone-200/50 dark:border-stone-700/50">
               {navItems.map((item) => {
                 const isSelected = activeTab === item.id;
                 const Icon = item.icon;
@@ -99,13 +99,27 @@ export const Header: React.FC<Props> = ({
                     key={item.id}
                     type="button"
                     onClick={() => onTabChange(item.id)}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
                       isSelected
-                        ? 'bg-white dark:bg-stone-900 text-stone-950 dark:text-white shadow-sm ring-1 ring-stone-200/80 dark:ring-stone-700/80'
+                        ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-white shadow-sm'
                         : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
+                    <Icon
+                      className={`w-4 h-4 transition ${
+                        isSelected
+                          ? item.id === 'goal_acceleration'
+                            ? 'text-amber-500 fill-amber-500'
+                            : item.id === 'today'
+                            ? 'text-emerald-500'
+                            : item.id === 'dimensions'
+                            ? 'text-blue-500'
+                            : item.id === 'plan_actual'
+                            ? 'text-indigo-500'
+                            : 'text-purple-500'
+                          : 'text-stone-400'
+                      }`}
+                    />
                     <span>{item.label}</span>
                   </button>
                 );
@@ -113,12 +127,12 @@ export const Header: React.FC<Props> = ({
             </nav>
 
             {/* Quick Actions Right */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <a
                 href="/life_coach.html"
                 target="_blank"
                 rel="noreferrer"
-                className="hidden xl:flex items-center gap-1 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 bg-stone-50/60 dark:bg-stone-800/40 text-xs font-semibold hover:bg-stone-100 transition"
+                className="hidden xl:flex items-center gap-1 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 bg-stone-50/60 dark:bg-stone-800/40 text-xs font-semibold hover:bg-stone-100 transition whitespace-nowrap"
                 title="在新标签页中打开单文件独立 HTML 网页"
               >
                 🌐 单文件HTML
@@ -127,26 +141,33 @@ export const Header: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={onOpenNewLog}
-                className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 font-bold text-xs sm:text-sm shadow-sm transition hover:opacity-90"
+                className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 font-bold text-xs sm:text-sm shadow-sm transition hover:opacity-90 min-h-[40px]"
+                title="记觉察 / 打卡"
               >
                 <Plus className="w-4 h-4" />
-                <span>记觉察 / 打卡</span>
+                <span className="hidden xs:inline">记觉察</span>
+                <span className="hidden sm:inline"> / 打卡</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowSettingsModal(true)}
-                className="p-2.5 rounded-xl text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                className="p-2 sm:p-2.5 rounded-xl text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 transition min-w-[40px] min-h-[40px] flex items-center justify-center"
                 title="数据备份与设置"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </button>
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Navigation Bar */}
-        <div className="md:hidden flex items-center justify-around border-t border-stone-200/60 dark:border-stone-800 px-2 py-2 bg-stone-50/80 dark:bg-stone-900/80">
+      {/* Fixed Native Mobile Bottom Tab Bar */}
+      <nav
+        aria-label="移动端底部导航"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-stone-900/95 backdrop-blur-xl border-t border-stone-200/90 dark:border-stone-800 md:hidden pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]"
+      >
+        <div className="grid grid-cols-5 items-stretch h-15 px-1">
           {navItems.map((item) => {
             const isSelected = activeTab === item.id;
             const Icon = item.icon;
@@ -155,19 +176,47 @@ export const Header: React.FC<Props> = ({
                 key={item.id}
                 type="button"
                 onClick={() => onTabChange(item.id)}
-                className={`flex flex-col items-center py-1 px-2 rounded-xl text-xs font-semibold transition ${
+                className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all duration-150 min-h-[48px] active:scale-95 ${
                   isSelected
-                    ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-                    : 'text-stone-500 dark:text-stone-400'
+                    ? 'text-stone-950 dark:text-white font-extrabold'
+                    : 'text-stone-500 dark:text-stone-400 hover:text-stone-800 font-medium'
                 }`}
               >
-                <Icon className="w-4 h-4 mb-0.5" />
-                <span className="text-[11px]">{item.label}</span>
+                <div className="relative">
+                  <Icon
+                    className={`w-5 h-5 transition-transform ${
+                      isSelected
+                        ? item.id === 'goal_acceleration'
+                          ? 'text-amber-500 fill-amber-500 scale-110'
+                          : item.id === 'today'
+                          ? 'text-emerald-500 scale-110'
+                          : item.id === 'dimensions'
+                          ? 'text-blue-500 scale-110'
+                          : item.id === 'plan_actual'
+                          ? 'text-indigo-500 scale-110'
+                          : 'text-purple-500 scale-110'
+                        : 'text-stone-400'
+                    }`}
+                  />
+                  {item.id === 'goal_acceleration' && (
+                    <span className="absolute -top-1 -right-2.5 px-1 py-0.2 text-[9px] font-black leading-none rounded-full bg-amber-500 text-stone-950 shadow-xs">
+                      5X
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[10px] sm:text-[11px] mt-0.5 tracking-tight ${isSelected ? 'font-black' : ''}`}>
+                  {item.label}
+                </span>
+                {isSelected && (
+                  <span className="w-1 h-1 rounded-full bg-stone-900 dark:bg-white mt-0.5" />
+                )}
               </button>
             );
           })}
         </div>
-      </header>
+      </nav>
+
+
 
       {/* Settings / Data Backup Modal */}
       {showSettingsModal && (

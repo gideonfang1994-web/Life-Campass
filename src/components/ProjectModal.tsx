@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LifeProject, ProjectCategory, ProjectPriority, ProjectStatus, EnergyCost, Milestone } from '../types';
-import { requestSmartBreakdown } from '../services/api';
-import { X, Sparkles, Plus, Trash2, Loader2, Lightbulb } from 'lucide-react';
+import { requestSmartBreakdown, requestAiAutofill } from '../services/api';
+import { X, Sparkles, Plus, Trash2, Loader2, Lightbulb, RefreshCw } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -79,9 +79,52 @@ export const ProjectModal: React.FC<Props> = ({ isOpen, onClose, onSave, initial
     setMilestones(milestones.filter((m) => m.id !== id));
   };
 
+  const handleClearProjectForm = () => {
+    setTitle('');
+    setDescription('');
+    setTargetDate('');
+    setMentalModel('');
+    setSuccessCriteria('');
+    setNextMicroAction('');
+    setMilestones([]);
+    setCoachTip(null);
+  };
+
+  const handleAiAutofillProject = async () => {
+    setIsAiBreakingDown(true);
+    try {
+      const data = await requestAiAutofill('project', { category, currentTitle: title });
+      if (data.title) setTitle(data.title);
+      if (data.description) setDescription(data.description);
+      if (data.priority) setPriority(data.priority);
+      if (data.energyCost) setEnergyCost(data.energyCost);
+      if (data.weeklyHours) setWeeklyHours(data.weeklyHours);
+      if (data.targetDate) setTargetDate(data.targetDate);
+      if (data.mentalModel) setMentalModel(data.mentalModel);
+      if (data.successCriteria) setSuccessCriteria(data.successCriteria);
+      if (data.nextMicroAction) setNextMicroAction(data.nextMicroAction);
+      if (Array.isArray(data.milestones) && data.milestones.length > 0) {
+        setMilestones(
+          data.milestones.map((m: any, idx: number) => ({
+            id: `m-ai-${Date.now()}-${idx}`,
+            title: m.title,
+            completed: false,
+            targetDays: m.targetDays,
+          }))
+        );
+      }
+      setCoachTip('AI 教练已为你自动生成高杠杆项目方案，包含微行动与阶段里程碑！');
+    } catch (e) {
+      console.error(e);
+      alert('AI 自动生成异常，请稍后重试');
+    } finally {
+      setIsAiBreakingDown(false);
+    }
+  };
+
   const handleAiBreakdown = async () => {
     if (!title.trim()) {
-      alert('请先输入项目/目标名称，便于AI教练进行精准拆解');
+      await handleAiAutofillProject();
       return;
     }
 
@@ -148,48 +191,113 @@ export const ProjectModal: React.FC<Props> = ({ isOpen, onClose, onSave, initial
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl my-8 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-stone-950/60 backdrop-blur-sm overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-stone-200 dark:border-stone-800 shadow-2xl w-full max-w-2xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col overflow-hidden my-0 sm:my-8">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
-              <Sparkles className="w-5 h-5" />
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              <h3 className="text-sm sm:text-base font-bold text-stone-900 dark:text-white">
                 {initialProject ? '编辑人生项目' : '开启新的人生项目 / 进化愿景'}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400">
                 定义清晰的北极星指标、里程碑梯度与防拖延微行动
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleClearProjectForm}
+              className="px-2.5 py-1 text-xs font-semibold rounded-lg text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition flex items-center gap-1 border border-stone-200 dark:border-stone-700"
+              title="一键清空表单所有已有内容"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>清空</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 flex-1 overflow-y-auto">
+          {/* AI Autofill Banner */}
+          <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="space-y-0.5">
+              <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                AI 智能构想与里程碑生成
+              </span>
+              <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
+                无需手动填写，一键根据所选维度生成完整的项目、成功指标与里程碑方案。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleAiAutofillProject}
+              disabled={isAiBreakingDown}
+              className="px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50"
+            >
+              {isAiBreakingDown ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>AI 生成中...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>✨ AI 自动填充</span>
+                </>
+              )}
+            </button>
+          </div>
+
           {/* Title */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              项目名称 <span className="text-rose-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                项目名称 <span className="text-rose-500">*</span>
+              </label>
+              {title && (
+                <button
+                  type="button"
+                  onClick={() => setTitle('')}
+                  className="text-[11px] text-slate-400 hover:text-rose-500"
+                >
+                  清空
+                </button>
+              )}
+            </div>
             <div className="flex gap-2">
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="例如：上线独立SaaS产品、半马1h55m完赛、建立资产定投系统"
-                className="flex-1 px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="例如：上线独立SaaS产品、半马1h55m完赛、建立资产定投系统"
+                  className="w-full px-3.5 py-2 pr-8 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                />
+                {title && (
+                  <button
+                    type="button"
+                    onClick={() => setTitle('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-0.5"
+                    title="清除"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={handleAiBreakdown}
@@ -274,9 +382,20 @@ export const ProjectModal: React.FC<Props> = ({ isOpen, onClose, onSave, initial
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              单项工程愿景与目标定位
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                单项工程愿景与目标定位
+              </label>
+              {description && (
+                <button
+                  type="button"
+                  onClick={() => setDescription('')}
+                  className="text-[11px] text-slate-400 hover:text-rose-500"
+                >
+                  清空
+                </button>
+              )}
+            </div>
             <textarea
               rows={2}
               value={description}
@@ -289,9 +408,20 @@ export const ProjectModal: React.FC<Props> = ({ isOpen, onClose, onSave, initial
           {/* Mental Model & Success Criteria */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                指导心法 / 认知模型 (可选)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  指导心法 / 认知模型 (可选)
+                </label>
+                {mentalModel && (
+                  <button
+                    type="button"
+                    onClick={() => setMentalModel('')}
+                    className="text-[11px] text-slate-400 hover:text-rose-500"
+                  >
+                    清空
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 value={mentalModel}
@@ -301,9 +431,20 @@ export const ProjectModal: React.FC<Props> = ({ isOpen, onClose, onSave, initial
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                成功交付与验收标准 (DoD)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  成功交付与验收标准 (DoD)
+                </label>
+                {successCriteria && (
+                  <button
+                    type="button"
+                    onClick={() => setSuccessCriteria('')}
+                    className="text-[11px] text-slate-400 hover:text-rose-500"
+                  >
+                    清空
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 value={successCriteria}
@@ -363,9 +504,20 @@ export const ProjectModal: React.FC<Props> = ({ isOpen, onClose, onSave, initial
 
           {/* Next Micro-Action */}
           <div>
-            <label className="block text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1">
-              ⚡ 当前最小可执行行动 (≤5分钟，消除启动阻抗)
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                ⚡ 当前最小可执行行动 (≤5分钟，消除启动阻抗)
+              </label>
+              {nextMicroAction && (
+                <button
+                  type="button"
+                  onClick={() => setNextMicroAction('')}
+                  className="text-[11px] text-slate-400 hover:text-rose-500"
+                >
+                  清空
+                </button>
+              )}
+            </div>
             <input
               type="text"
               value={nextMicroAction}
@@ -377,9 +529,20 @@ export const ProjectModal: React.FC<Props> = ({ isOpen, onClose, onSave, initial
 
           {/* Milestones list */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              阶段性里程碑阶梯 ({milestones.length})
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                阶段性里程碑阶梯 ({milestones.length})
+              </label>
+              {milestones.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setMilestones([])}
+                  className="text-[11px] text-slate-400 hover:text-rose-500"
+                >
+                  清空全部里程碑
+                </button>
+              )}
+            </div>
             <div className="space-y-1.5 mb-2">
               {milestones.map((milestone, idx) => (
                 <div
@@ -396,6 +559,7 @@ export const ProjectModal: React.FC<Props> = ({ isOpen, onClose, onSave, initial
                     type="button"
                     onClick={() => handleRemoveMilestone(milestone.id)}
                     className="text-slate-400 hover:text-rose-500 p-1"
+                    title="删除该里程碑"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -429,20 +593,31 @@ export const ProjectModal: React.FC<Props> = ({ isOpen, onClose, onSave, initial
           </div>
 
           {/* Form Actions */}
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              onClick={handleClearProjectForm}
+              className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition flex items-center gap-1"
             >
-              取消
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>清空所有内容</span>
             </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition"
-            >
-              {initialProject ? '保存更新' : '立即创建项目'}
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition"
+              >
+                {initialProject ? '保存更新' : '立即创建项目'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

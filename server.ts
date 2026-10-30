@@ -922,6 +922,288 @@ app.post('/api/coach/goal-optimize-arrangement', async (req: Request, res: Respo
   }
 });
 
+// 7. Universal AI Autofill Endpoint for all modular blocks
+app.post('/api/ai/autofill', async (req: Request, res: Response) => {
+  const { type, context = {} } = req.body;
+
+  if (!type) {
+    return res.status(400).json({ error: 'autofill type is required' });
+  }
+
+  // Pre-configured rich heuristic fallbacks for every type
+  const getFallback = () => {
+    if (type === 'goal') {
+      const cat = context.category || 'career';
+      const presets: Record<string, any> = {
+        career: {
+          title: '构建单兵AI独立软件矩阵，实现年营收100万与全球化交付',
+          category: 'career',
+          fiveYearVision: '常规路线：组建5人团队，融天使轮，花2年设计架构，再花2年缓慢打磨产品并做销售推介。',
+          oneYearTarget: '倒逼1年：利用AI全栈与第一性原理，48小时上线MVP，以真实付费为唯一检验，年内迭代3款高转化工具。',
+          fundamentalTruth: '软件的本质是为用户节省时间或创造收入；只要核心代码跑通并解决真痛点，多余的流程和冗员都是熵增。',
+          deletedProcesses: [
+            '删掉未见用户前的长篇架构设计与无用PPT',
+            '删掉过早的微服务与过度设计',
+            '删掉无实质交付的内部会议',
+          ],
+          coreBottleneck: '从功能实现到推送到目标用户面前并产生第一笔付款的反馈闭环周期。',
+          unconventionalPath: '在海外技术社区与社媒公开构建(Build in Public)，以预售和终身优惠直接检验付费意愿。',
+          muskDirective: '马斯克监督令：停止在内部反复打磨！本周末前把最简版本推给10位潜在用户，拿到真实硬反馈！',
+          milestones: [
+            { phase: 'Q1', title: 'Q1 极限破局：完成首款高痛点工具上线并获得第一批种子付费用户', verificationProof: 'Stripe真实收款账单与生产环境访问链接' },
+            { phase: 'Q2', title: 'Q2 消除限速瓶颈：打通海外自然搜索流量与社群裂变通路', verificationProof: '月活突破5000且转化率维持在3%以上的数据报告' },
+            { phase: 'Q3', title: 'Q3 杠杆复制：将核心系统自动化，矩阵式上线第2款协同产品', verificationProof: '双产品合并MRR突破5万元的财务报表' },
+            { phase: 'Q4', title: 'Q4 达成5年级终局指标：年累计营收破百万并建立全自动运转流', verificationProof: '年度硬财务审计报告与资产自动化运行证据' },
+          ],
+        },
+        health: {
+          title: '重塑体能与代谢引擎：体脂降至15%并跑通全马',
+          category: 'health',
+          fiveYearVision: '常规路线：断断续续办健身卡，盲目试错食谱，拖延到中年才被迫进行健康干预。',
+          oneYearTarget: '倒逼1年：精准心率训练+纯天然洁净饮食，Q2半马破2小时，Q4全马完赛且体脂达到运动员级健康水准。',
+          fundamentalTruth: '人体的本质是一台能量代谢热力学机器；热量缺口+渐进超负荷+深度睡眠即是全部真理。',
+          deletedProcesses: ['删掉无计划的佛系散步', '删掉花哨但无效的高价补剂', '删掉深夜暴饮暴食的情绪性进食'],
+          coreBottleneck: '晨间启动跑步的心理阻抗与训练后的疲劳恢复效率。',
+          unconventionalPath: '睡前将跑步装备置于床头，建立2分钟无痛触发器，引入心率带客观数据驱动配速。',
+          muskDirective: '马斯克监督令：身体是承载5X雄心的唯一物理硬件。今晚10:30必须断网熄灯，明天早晨6:00踏出家门！',
+          milestones: [
+            { phase: 'Q1', title: 'Q1 有氧筑基：连续12周每周跑步30公里，静息心率降至60以下', verificationProof: 'Garmin/Apple Watch训练日志客观导出记录' },
+            { phase: 'Q2', title: 'Q2 配速突破：成功挑战半程马拉松并破2小时完赛', verificationProof: '官方半马完赛证书与净计时芯片数据' },
+            { phase: 'Q3', title: 'Q3 力量与核心防伤重塑：深蹲达到1.5倍体重，体脂率降至16%', verificationProof: 'InBody专业体成分体检单' },
+            { phase: 'Q4', title: 'Q4 达成5年级终局指标：全程马拉松安全完赛，身体素质全面跃升', verificationProof: '全马奖牌与年度三甲医院全套体检优异指标' },
+          ],
+        },
+        wealth: {
+          title: '构建抗脆弱被动现金流系统，年被动收入达到30万元',
+          category: 'wealth',
+          fiveYearVision: '常规路线：靠存死工资，等待每年微薄加薪，漫长积累第一桶金。',
+          oneYearTarget: '倒逼1年：通过高杠杆数字资产与高收益被动现金流项目，实现被动月入2.5万。',
+          fundamentalTruth: '财富来自于为你创造现金流的资产，而非出售时间的工资；利用代码与媒体杠杆才能突破时间边界。',
+          deletedProcesses: ['删掉追涨杀跌的情绪化短线操作', '删掉为低回报繁杂琐事耗费的时间', '删掉盲目听信内幕消息'],
+          coreBottleneck: '可复制的数字商品或高现金流业务的第一批规模化分发渠道。',
+          unconventionalPath: '利用自媒体建立利基垂直影响力，将专业工作流打包为高客单知识资产与工具模板。',
+          muskDirective: '马斯克监督令：停止出卖体力时间！本周内上线首个可被无限复制的自动化数字产品并开放购买！',
+          milestones: [
+            { phase: 'Q1', title: 'Q1 打造核心数字资产并完成首发验证', verificationProof: '首批50位付费用户交易明细' },
+            { phase: 'Q2', title: 'Q2 建立自动化销售漏斗与长期邮件分发体系', verificationProof: '转化漏斗数据与稳定的日均现金流' },
+            { phase: 'Q3', title: 'Q3 搭建多资产现金流矩阵，月被动现金流入破2万', verificationProof: '月度银行流水凭证' },
+            { phase: 'Q4', title: 'Q4 达成5年级终局指标：年化现金流突破30万，达成财务安全线', verificationProof: '资产负债表与税单审计证据' },
+          ],
+        },
+        mindset: {
+          title: '建立第一性原理心智操作系统，深度阅读50部硬核典籍并输出思想体系',
+          category: 'mindset',
+          fiveYearVision: '常规路线：随手翻翻畅销书，浅尝辄止，思维认知停留在人云亦云的表层。',
+          oneYearTarget: '倒逼1年：精读50部横跨物理、演化生物学与经典哲学的顶尖专著，每周公开发表深度长文复盘。',
+          fundamentalTruth: '人类认知的大多数焦虑源于信息过载与二阶假说；唯有回归数学、物理与斯多葛经典，方能获得定力。',
+          deletedProcesses: ['删掉短视频与快餐资讯信息流', '删掉虚荣的浅层社交', '删掉未经思考的被动吸收'],
+          coreBottleneck: '每日能否雷打不动守住前90分钟进行高难度深度心流阅读与推导。',
+          unconventionalPath: '以费曼学习法为内核：每学完一个核心思维模型，必须用最白话的语言向外界讲通并接受质疑。',
+          muskDirective: '马斯克监督令：立刻关掉一切垃圾信息源！今晚就写下你对当前最困惑问题的物理本质拆解！',
+          milestones: [
+            { phase: 'Q1', title: 'Q1 心智断舍离：彻底清除数字噪音，精读12部科学与哲学硬核原著', verificationProof: '输出12篇万字结构化精读手记' },
+            { phase: 'Q2', title: 'Q2 思维模型重塑：归纳整理出包含20个顶级心智模型的个人认知库', verificationProof: '公开个人知识库与推导图谱' },
+            { phase: 'Q3', title: 'Q3 决策实践闭环：将第一性原理应用于重大工作与生活抉择', verificationProof: '复盘记录集与决策正确率提升数据' },
+            { phase: 'Q4', title: 'Q4 达成5年级终局指标：出版或公开发布个人思维演进白皮书', verificationProof: '完整知识体系文档与读者硬核反馈' },
+          ],
+        },
+      };
+      return presets[cat] || presets.career;
+    }
+
+    if (type === 'project') {
+      const cat = context.category || 'career';
+      const presets: Record<string, any> = {
+        career: {
+          title: '核心交付物极速突破战役',
+          category: 'career',
+          description: '运用第一性原理，砍掉一切伪流程，快速跑通核心业务交付闭环。',
+          priority: 'high',
+          energyCost: 'recharging',
+          weeklyHours: 4,
+          targetDate: new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0],
+          mentalModel: '80/20 法则与 MVP 极限精益验证',
+          successCriteria: '完成端到端核心功能交付，并获得外部真实用户正面反馈。',
+          nextMicroAction: '梳理核心流程最小可交付清单，并在48小时内写下第一版原型草稿。',
+          milestones: [
+            { title: '完成核心流程最小原型梳理与技术验证', targetDays: 7 },
+            { title: '内部自测跑通并修复所有阻断性问题', targetDays: 20 },
+            { title: '面向种子用户发布并收集真实数据反馈', targetDays: 45 },
+          ],
+        },
+        health: {
+          title: '精力充沛重塑计划：晨跑与洁净饮食',
+          category: 'health',
+          description: '建立高抗逆力的身体底座，通过周期化跑步和深度睡眠提升日常专注力。',
+          priority: 'high',
+          energyCost: 'recharging',
+          weeklyHours: 3.5,
+          targetDate: new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0],
+          mentalModel: '习惯回路触发器 (Cue-Routine-Reward)',
+          successCriteria: '静息心率降至60以下，每周稳定完成3次有氧慢跑。',
+          nextMicroAction: '今晚22:30前准时断开电子屏幕，准备好明早跑步装备。',
+          milestones: [
+            { title: '连续2周保持早睡早起与低碳洁净饮食', targetDays: 14 },
+            { title: '突破单次有氧跑10公里，配速平稳', targetDays: 35 },
+            { title: '完成全身体脂与心肺耐力阶段性复测', targetDays: 60 },
+          ],
+        },
+        wealth: {
+          title: '抗脆弱资产与现金流基石搭建',
+          category: 'wealth',
+          description: '梳理家庭资产负债表，理顺自动化定投机制，探索第二被动收入来源。',
+          priority: 'medium',
+          energyCost: 'neutral',
+          weeklyHours: 2.5,
+          targetDate: new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0],
+          mentalModel: '巴菲特护城河与纳瓦尔特定知识杠杆',
+          successCriteria: '建立清晰的资产配置流水账，被动收入占比持续提升。',
+          nextMicroAction: '完成过去半年的财务开销复盘，砍掉3项无效隐性订阅。',
+          milestones: [
+            { title: '完成全口径个人资产负债表梳理', targetDays: 7 },
+            { title: '建立自动化定投通道与6个月紧急备用金账户', targetDays: 30 },
+            { title: '调研并上线首个低边际成本数字产品', targetDays: 60 },
+          ],
+        },
+      };
+      return presets[cat] || presets.career;
+    }
+
+    if (type === 'today_plan') {
+      return {
+        oneThingGoal: '攻坚核心业务交付物，完成关键逻辑闭环并发送外部验证',
+        plannedHours: 3.5,
+        plannedOutput: '完成核心模块交付并产出可直接检验的证据链接',
+        actualAction: '专注心流3小时，彻底解决关键瓶颈并完成对外交付',
+        actualHours: 3.0,
+        actualOutput: '已按既定高标准完成关键交付并向相关方发送验证通知',
+        fulfillmentRate: 95,
+        deviationReason: '执行极为专注，前序时间块未受到任何外部无意义打扰',
+        leverageType: 'high_leverage',
+        coachTip: '今日推倒了核心多米诺骨牌，保持这种单点穿透的节奏！',
+      };
+    }
+
+    if (type === 'daily_log') {
+      return {
+        highlight: '在晨间黄金心流时间内，攻坚完成了最具阻抗的核心交付任务！',
+        energyLevel: 4,
+        mood: 'focused',
+        wins: [
+          '拒绝了2个无意义的会议和低价值打扰，守住了3小时深度工作块',
+          '把模糊复杂的项目拆解成了立刻可动手的3个小步，克服了拖延',
+          '晚上进行了30分钟轻松慢跑，身心完全充盈',
+        ],
+        friction: '下午略微受到碎片化资讯吸引，明天需要更严格地限制手机使用。',
+        projectNote: '核心项目进展扎实，关键指标已前进了一大步。',
+        progressDelta: 8,
+      };
+    }
+
+    return {};
+  };
+
+  if (!ai) {
+    return res.json(getFallback());
+  }
+
+  try {
+    let prompt = '';
+    if (type === 'goal') {
+      prompt = `你是一位融合了埃隆·马斯克第一性原理、乔布斯极致专注与顶级战略教练的智囊。
+请针对以下背景，为用户全要素自动构想一份能够【在1年内完成5年进度】的硬核 5X 加速目标方案：
+【用户提供的信息/偏好】：${JSON.stringify(context)}
+
+请严格返回符合以下 JSON Schema 的纯 JSON 对象（不要用 markdown 代码块包围，只输出纯 JSON）：
+{
+  "title": "目标的硬核名称（简明有力，直击本质）",
+  "category": "${context.category || 'career'}",
+  "fiveYearVision": "原本按传统保守、线性拖延的做法需要5年才能完成的愿景描绘",
+  "oneYearTarget": "倒逼在1年内极限突破的硬核量化指标（5X时间压缩，只保留核心本质）",
+  "fundamentalTruth": "剥离一切表象与借口后，这项事情最底层的物理本质与事实真理",
+  "deletedProcesses": ["必须彻底删减的伪流程/伪需求1", "必须彻底删减的伪流程/伪需求2", "必须彻底删减的伪流程/伪需求3"],
+  "coreBottleneck": "当前唯一的最大限速瓶颈(Rate-limiting step)",
+  "unconventionalPath": "非常规、非线性的破局路径与杠杆支点",
+  "muskDirective": "马斯克式的严厉不可妥协训令（要求48小时内产生真实交付证据）",
+  "milestones": [
+    { "phase": "Q1", "title": "Q1 极限破局：最小可用闭环与真实世界反馈", "verificationProof": "客观不可篡改的交付硬凭据" },
+    { "phase": "Q2", "title": "Q2 消除瓶颈：打通规模化通道", "verificationProof": "周转效率指标" },
+    { "phase": "Q3", "title": "Q3 极限迭代：建立自动化支点", "verificationProof": "产出翻倍证据" },
+    { "phase": "Q4", "title": "Q4 达成5年级终局指标：固化成果与年度审计", "verificationProof": "硬核审计报告" }
+  ]
+}`;
+    } else if (type === 'project') {
+      prompt = `请作为专业人生教练，为用户自动构思一个高杠杆、结构化的人生项目：
+【用户上下文/分类】：${JSON.stringify(context)}
+
+请严格返回符合以下 JSON Schema 的纯 JSON 对象：
+{
+  "title": "项目名称",
+  "category": "${context.category || 'career'}",
+  "description": "项目简要背景与核心使命",
+  "priority": "high",
+  "energyCost": "recharging",
+  "weeklyHours": 3.5,
+  "targetDate": "2026-12-31",
+  "mentalModel": "适用的核心思维模型（如 80/20、费曼学习法、第一性原理等）",
+  "successCriteria": "清晰、可检验的验收成功标准",
+  "nextMicroAction": "今日或未来24小时内可无痛启动的极简微行动",
+  "milestones": [
+    { "title": "里程碑 1", "targetDays": 7 },
+    { "title": "里程碑 2", "targetDays": 21 },
+    { "title": "里程碑 3", "targetDays": 45 }
+  ]
+}`;
+    } else if (type === 'today_plan') {
+      prompt = `请根据《最重要的事只有一件》与《纳瓦尔宝典》的高杠杆原则，为用户智能推演今日的最优计划与实绩模板：
+【参考上下文】：${JSON.stringify(context)}
+
+请严格返回符合以下 JSON Schema 的纯 JSON 对象：
+{
+  "oneThingGoal": "今天最不可妥协的唯一一件高杠杆要事",
+  "plannedHours": 3.0,
+  "plannedOutput": "完成后具体的关键交付物",
+  "actualAction": "实际落地的关键攻坚动作",
+  "actualHours": 3.0,
+  "actualOutput": "实际完成的高质量成果",
+  "fulfillmentRate": 92,
+  "deviationReason": "执行平稳高效，专注心流无外部打扰",
+  "leverageType": "high_leverage",
+  "coachTip": "一句话高能量教练点评"
+}`;
+    } else if (type === 'daily_log') {
+      prompt = `请为用户生成一份充满洞察力与正向动量的每日高水平复盘日志样例：
+【参考上下文】：${JSON.stringify(context)}
+
+请严格返回符合以下 JSON Schema 的纯 JSON 对象：
+{
+  "highlight": "今日最亮眼的高光时刻或顿悟",
+  "energyLevel": 4,
+  "mood": "focused",
+  "wins": ["今日小胜 1", "今日小胜 2", "今日小胜 3"],
+  "friction": "今日遇到的阻抗或反思观察",
+  "projectNote": "关联项目的具体推进要点",
+  "progressDelta": 8
+}`;
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.6,
+      },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || '{}');
+    res.json(parsed);
+  } catch (err: any) {
+    console.error('AI autofill error:', err);
+    res.json(getFallback());
+  }
+});
+
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
   const isDev = process.env.NODE_ENV !== 'production';

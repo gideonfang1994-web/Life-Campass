@@ -17,7 +17,9 @@ import {
   Brain,
   Layers,
   ChevronRight,
+  RefreshCw,
 } from 'lucide-react';
+import { requestAiAutofill } from '../services/api';
 
 interface Props {
   records: PlanActualRecord[];
@@ -53,6 +55,43 @@ export const PlanVsActualView: React.FC<Props> = ({
   const [fulfillmentRate, setFulfillmentRate] = useState<number>(90);
   const [deviationReason, setDeviationReason] = useState('');
   const [leverageType, setLeverageType] = useState<'high_leverage' | 'neutral' | 'low_leverage'>('high_leverage');
+  const [isAiAutofilling, setIsAiAutofilling] = useState(false);
+
+  const handleClearRecordForm = () => {
+    setOneThingGoal('');
+    setPlannedHours(3.0);
+    setPlannedOutput('');
+    setActualAction('');
+    setActualHours(3.0);
+    setActualOutput('');
+    setFulfillmentRate(85);
+    setDeviationReason('');
+  };
+
+  const handleAiAutofillRecord = async () => {
+    setIsAiAutofilling(true);
+    try {
+      const selectedProj = projects.find((p) => p.id === projectId);
+      const data = await requestAiAutofill('today_plan', {
+        dimension,
+        selectedProject: selectedProj ? { title: selectedProj.title, successCriteria: selectedProj.successCriteria } : null,
+      });
+
+      if (data.oneThingGoal) setOneThingGoal(data.oneThingGoal);
+      if (data.plannedHours) setPlannedHours(data.plannedHours);
+      if (data.plannedOutput) setPlannedOutput(data.plannedOutput);
+      if (data.actualAction) setActualAction(data.actualAction);
+      if (data.actualHours) setActualHours(data.actualHours);
+      if (data.actualOutput) setActualOutput(data.actualOutput);
+      if (data.fulfillmentRate) setFulfillmentRate(data.fulfillmentRate);
+      if (data.deviationReason) setDeviationReason(data.deviationReason);
+      if (data.leverageType) setLeverageType(data.leverageType);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAiAutofilling(false);
+    }
+  };
 
   // Stats
   const avgFulfillment =
@@ -160,23 +199,23 @@ export const PlanVsActualView: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="pt-2 flex flex-wrap items-center gap-3">
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
             <button
               type="button"
               onClick={handleOpenAdd}
-              className="px-5 py-2.5 rounded-2xl bg-white text-stone-950 font-bold text-sm hover:bg-stone-100 transition flex items-center gap-1.5 shadow-sm"
+              className="w-full sm:w-auto justify-center px-5 py-3 rounded-2xl bg-white text-stone-950 font-bold text-xs sm:text-sm hover:bg-stone-100 transition flex items-center gap-1.5 shadow-sm min-h-[44px]"
             >
               <Plus className="w-4 h-4" />
-              记录今日「计划 vs 实际实绩」
+              <span>记录今日「计划 vs 实际实绩」</span>
             </button>
 
             <button
               type="button"
               onClick={() => onOpenCoachChat('教练，我想基于《最重要的事只有一件》和《纳瓦尔宝典》，对我的计划与实际工作做一次深度偏差审查，帮我识别假努力与低杠杆陷阱。')}
-              className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs sm:text-sm border border-white/10 transition flex items-center gap-1.5"
+              className="w-full sm:w-auto justify-center px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs sm:text-sm border border-white/10 transition flex items-center gap-1.5 min-h-[44px]"
             >
               <Sparkles className="w-4 h-4 text-emerald-400" />
-              向人生教练申请实绩审查
+              <span>向人生教练申请实绩审查</span>
             </button>
           </div>
         </div>
@@ -401,22 +440,62 @@ export const PlanVsActualView: React.FC<Props> = ({
 
       {/* Modal: New / Edit Record */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-2xl w-full max-w-xl my-6 overflow-hidden">
-            <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
-              <h3 className="text-base font-bold text-stone-900 dark:text-white">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-stone-950/60 backdrop-blur-sm overflow-hidden">
+          <div className="bg-white dark:bg-stone-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-stone-200 dark:border-stone-800 shadow-2xl w-full max-w-xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col overflow-hidden my-0 sm:my-6">
+            <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between shrink-0">
+              <h3 className="text-sm sm:text-base font-bold text-stone-900 dark:text-white">
                 {editingRecord ? '编辑计划与实绩记录' : '新增「计划 vs 实际」对照实绩'}
               </h3>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 text-lg font-bold"
-              >
-                &times;
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleClearRecordForm}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition flex items-center gap-1 border border-stone-200 dark:border-stone-700"
+                  title="一键清空表单所有已有内容"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>清空</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                >
+                  <span className="text-lg font-bold leading-none">&times;</span>
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 flex-1 overflow-y-auto text-xs">
+              {/* AI Autofill Prompt Card */}
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-50 to-emerald-50 dark:from-amber-950/30 dark:to-emerald-950/30 border border-amber-200 dark:border-amber-800/80 flex items-center justify-between gap-2">
+                <div className="text-xs text-stone-800 dark:text-stone-200">
+                  <span className="font-bold flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    AI 纳瓦尔高杠杆实绩智能推演
+                  </span>
+                  <span className="text-[11px] text-stone-500 dark:text-stone-400">自动匹配高价值要事、预估工时与成果交付</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAiAutofillRecord}
+                  disabled={isAiAutofilling}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs transition shadow-sm flex items-center gap-1 shrink-0 disabled:opacity-50"
+                >
+                  {isAiAutofilling ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                      <span>推演中...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3 h-3 text-stone-950" />
+                      <span>✨ AI 自动填充</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
               {/* Date & Dimension */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -446,17 +525,39 @@ export const PlanVsActualView: React.FC<Props> = ({
 
               {/* The ONE Thing */}
               <div>
-                <label className="block font-bold text-stone-900 dark:text-white mb-1">
-                  🎯 The ONE Thing: 今天最重要的一件事是什么？ *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={oneThingGoal}
-                  onChange={(e) => setOneThingGoal(e.target.value)}
-                  placeholder="例如：攻坚SaaS海外支付代码；完成14K长距离配速跑"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 font-medium"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-stone-900 dark:text-white">
+                    🎯 The ONE Thing: 今天最重要的一件事是什么？ *
+                  </label>
+                  {oneThingGoal && (
+                    <button
+                      type="button"
+                      onClick={() => setOneThingGoal('')}
+                      className="text-[11px] text-stone-400 hover:text-rose-500"
+                    >
+                      清空
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={oneThingGoal}
+                    onChange={(e) => setOneThingGoal(e.target.value)}
+                    placeholder="例如：攻坚SaaS海外支付代码；完成14K长距离配速跑"
+                    className="w-full px-3.5 py-2.5 pr-7 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 font-medium"
+                  />
+                  {oneThingGoal && (
+                    <button
+                      type="button"
+                      onClick={() => setOneThingGoal('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Planned Section */}
@@ -473,12 +574,23 @@ export const PlanVsActualView: React.FC<Props> = ({
                       min="0.5"
                       max="16"
                       value={plannedHours}
-                      onChange={(e) => setPlannedHours(parseFloat(e.target.value))}
+                      onChange={(e) => setPlannedHours(parseFloat(e.target.value) || 1)}
                       className="w-full px-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800"
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-[11px] text-stone-500 mb-1">计划关键交付物</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] text-stone-500">计划关键交付物</label>
+                      {plannedOutput && (
+                        <button
+                          type="button"
+                          onClick={() => setPlannedOutput('')}
+                          className="text-[10px] text-stone-400 hover:text-rose-500"
+                        >
+                          清空
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={plannedOutput}
@@ -504,12 +616,23 @@ export const PlanVsActualView: React.FC<Props> = ({
                       min="0"
                       max="16"
                       value={actualHours}
-                      onChange={(e) => setActualHours(parseFloat(e.target.value))}
+                      onChange={(e) => setActualHours(parseFloat(e.target.value) || 1)}
                       className="w-full px-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800"
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-[11px] text-stone-500 mb-1">实际成果交付</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] text-stone-500">实际成果交付</label>
+                      {actualOutput && (
+                        <button
+                          type="button"
+                          onClick={() => setActualOutput('')}
+                          className="text-[10px] text-stone-400 hover:text-rose-500"
+                        >
+                          清空
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={actualOutput}
@@ -521,7 +644,18 @@ export const PlanVsActualView: React.FC<Props> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-stone-500 mb-1">实际执行动作描述</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] text-stone-500">实际执行动作描述</label>
+                    {actualAction && (
+                      <button
+                        type="button"
+                        onClick={() => setActualAction('')}
+                        className="text-[10px] text-stone-400 hover:text-rose-500"
+                      >
+                        清空
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={actualAction}
@@ -565,9 +699,20 @@ export const PlanVsActualView: React.FC<Props> = ({
 
               {/* Deviation reflection */}
               <div>
-                <label className="block font-semibold mb-1">
-                  偏差原因剖析 (为什么计划与实际有出入？是否遭遇假努力或多任务陷阱？)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold">
+                    偏差原因剖析 (为什么计划与实际有出入？是否遭遇假努力或多任务陷阱？)
+                  </label>
+                  {deviationReason && (
+                    <button
+                      type="button"
+                      onClick={() => setDeviationReason('')}
+                      className="text-[11px] text-stone-400 hover:text-rose-500"
+                    >
+                      清空
+                    </button>
+                  )}
+                </div>
                 <textarea
                   rows={2}
                   value={deviationReason}
@@ -577,20 +722,31 @@ export const PlanVsActualView: React.FC<Props> = ({
                 />
               </div>
 
-              <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex justify-end gap-2">
+              <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-100"
+                  onClick={handleClearRecordForm}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition flex items-center gap-1"
                 >
-                  取消
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>清空所有内容</span>
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-950 font-bold hover:opacity-90"
-                >
-                  保存对照记录
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-100"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-950 font-bold hover:opacity-90"
+                  >
+                    保存对照记录
+                  </button>
+                </div>
               </div>
             </form>
           </div>

@@ -344,3 +344,22 @@ export async function requestGoalOptimalArrangement(
   };
 }
 
+// 通用全模块 AI 自动填充服务
+export async function requestAiAutofill(
+  type: 'goal' | 'project' | 'today_plan' | 'daily_log',
+  context?: Record<string, any>
+): Promise<any> {
+  const response = await fetch('/api/ai/autofill', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, context }),
+  });
+
+  if (!response.ok) {
+    throw new Error('AI autofill failed');
+  }
+
+  return response.json();
+}
+
+

@@ -14,6 +14,7 @@ import {
   auditMuskGoalSupervision,
   streamGoalConsultationChat,
   requestGoalOptimalArrangement,
+  requestAiAutofill,
   MuskBreakdownResponse,
   MuskSupervisionResponse,
 } from '../services/api';
@@ -350,10 +351,88 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
     setIsModalOpen(true);
   };
 
+  // Clear Goal Form completely
+  const handleClearGoalForm = () => {
+    setFormTitle('');
+    setFormFiveYearVision('');
+    setFormOneYearTarget('');
+    setFormFundamentalTruth('');
+    setFormDeletedProcessesText('');
+    setFormCoreBottleneck('');
+    setFormUnconventionalPath('');
+    setFormMuskDirective('');
+    setFormMilestones([]);
+  };
+
+  // Milestone operations in Goal Form
+  const handleAddMilestone = () => {
+    const nextQuarter = `Q${formMilestones.length + 1}`;
+    setFormMilestones([
+      ...formMilestones,
+      {
+        id: 'm-' + Date.now(),
+        phase: nextQuarter,
+        title: '',
+        completed: false,
+        verificationProof: '',
+      },
+    ]);
+  };
+
+  const handleRemoveMilestone = (id: string) => {
+    setFormMilestones(formMilestones.filter((m) => m.id !== id));
+  };
+
+  const handleUpdateMilestone = (id: string, field: 'phase' | 'title' | 'verificationProof', value: string) => {
+    setFormMilestones(
+      formMilestones.map((m) => (m.id === id ? { ...m, [field]: value } : m))
+    );
+  };
+
+  // AI Musk Autofill All Fields (works from scratch or from prompt)
+  const handleAutofillEntireGoal = async () => {
+    setIsAiDecomposing(true);
+    try {
+      const data = await requestAiAutofill('goal', {
+        category: formCategory,
+        currentTitle: formTitle,
+        fiveYearVision: formFiveYearVision,
+      });
+
+      if (data.title) setFormTitle(data.title);
+      if (data.fiveYearVision) setFormFiveYearVision(data.fiveYearVision);
+      if (data.oneYearTarget) setFormOneYearTarget(data.oneYearTarget);
+      if (data.fundamentalTruth) setFormFundamentalTruth(data.fundamentalTruth);
+      if (Array.isArray(data.deletedProcesses)) {
+        setFormDeletedProcessesText(data.deletedProcesses.join('\n'));
+      }
+      if (data.coreBottleneck) setFormCoreBottleneck(data.coreBottleneck);
+      if (data.unconventionalPath) setFormUnconventionalPath(data.unconventionalPath);
+      if (data.muskDirective) setFormMuskDirective(data.muskDirective);
+
+      if (Array.isArray(data.milestones) && data.milestones.length > 0) {
+        setFormMilestones(
+          data.milestones.map((m: any, idx: number) => ({
+            id: 'm-auto-' + Date.now() + '-' + idx,
+            phase: m.phase || `Q${idx + 1}`,
+            title: m.title,
+            completed: false,
+            verificationProof: m.verificationProof || '客观交付证据',
+          }))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      alert('AI 自动填充服务异常，请稍后重试');
+    } finally {
+      setIsAiDecomposing(false);
+    }
+  };
+
   // AI Musk Breakdown Trigger in Modal
   const handleTriggerAiBreakdown = async () => {
     if (!formTitle.trim()) {
-      alert('请先输入目标名称或愿景概述');
+      await handleAutofillEntireGoal();
       return;
     }
     setIsAiDecomposing(true);
@@ -589,11 +668,11 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0 w-full md:w-auto mt-2 md:mt-0">
               <button
                 type="button"
                 onClick={() => setIsAlgorithmGuideOpen(!isAlgorithmGuideOpen)}
-                className="px-3.5 py-2.5 rounded-2xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 border border-stone-700/80"
+                className="flex-1 sm:flex-none justify-center px-3.5 py-2.5 rounded-2xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 border border-stone-700/80 min-h-[44px]"
               >
                 <Cpu className="w-4 h-4 text-amber-400" />
                 <span>马斯克算法五步法</span>
@@ -603,7 +682,7 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={handleOpenAddModal}
-                className="px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs sm:text-sm font-extrabold transition shadow-lg flex items-center gap-1.5"
+                className="flex-1 sm:flex-none justify-center px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs sm:text-sm font-extrabold transition shadow-lg flex items-center gap-1.5 min-h-[44px]"
               >
                 <Plus className="w-4 h-4" />
                 <span>建立 5X 极限目标</span>
@@ -612,39 +691,39 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
           </div>
 
           {/* Core Metrics Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6">
-            <div className="bg-stone-800/60 rounded-2xl p-4 border border-stone-700/60">
-              <div className="text-xs text-stone-400 font-medium">5X 极限航向速度指数</div>
-              <div className="text-2xl sm:text-3xl font-mono font-extrabold text-amber-400 mt-1 flex items-baseline gap-1">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 pt-4 sm:pt-6">
+            <div className="bg-stone-800/60 rounded-2xl p-3 sm:p-4 border border-stone-700/60">
+              <div className="text-[11px] sm:text-xs text-stone-400 font-medium">5X 极限航向速度指数</div>
+              <div className="text-xl sm:text-3xl font-mono font-extrabold text-amber-400 mt-1 flex items-baseline gap-1">
                 {avgVelocity}
-                <span className="text-xs text-stone-400 font-sans font-normal">/ 100</span>
+                <span className="text-[10px] sm:text-xs text-stone-400 font-sans font-normal">/ 100</span>
               </div>
-              <div className="text-[11px] text-stone-400 mt-1">杜绝低效慢速假努力</div>
+              <div className="text-[10px] sm:text-[11px] text-stone-400 mt-1">杜绝低效慢速假努力</div>
             </div>
 
-            <div className="bg-stone-800/60 rounded-2xl p-4 border border-stone-700/60">
-              <div className="text-xs text-stone-400 font-medium">已极度删减无用环节</div>
-              <div className="text-2xl sm:text-3xl font-mono font-extrabold text-emerald-400 mt-1 flex items-baseline gap-1">
+            <div className="bg-stone-800/60 rounded-2xl p-3 sm:p-4 border border-stone-700/60">
+              <div className="text-[11px] sm:text-xs text-stone-400 font-medium">已极度删减无用环节</div>
+              <div className="text-xl sm:text-3xl font-mono font-extrabold text-emerald-400 mt-1 flex items-baseline gap-1">
                 {totalWasteDeleted}
-                <span className="text-xs text-stone-400 font-sans font-normal">个工序</span>
+                <span className="text-[10px] sm:text-xs text-stone-400 font-sans font-normal">个工序</span>
               </div>
-              <div className="text-[11px] text-stone-400 mt-1">五步法第二步：狠删零件</div>
+              <div className="text-[10px] sm:text-[11px] text-stone-400 mt-1">五步法第二步：狠删零件</div>
             </div>
 
-            <div className="bg-stone-800/60 rounded-2xl p-4 border border-stone-700/60">
-              <div className="text-xs text-stone-400 font-medium">活跃倒逼战役</div>
-              <div className="text-2xl sm:text-3xl font-mono font-extrabold text-white mt-1">
+            <div className="bg-stone-800/60 rounded-2xl p-3 sm:p-4 border border-stone-700/60">
+              <div className="text-[11px] sm:text-xs text-stone-400 font-medium">活跃倒逼战役</div>
+              <div className="text-xl sm:text-3xl font-mono font-extrabold text-white mt-1">
                 {goals.length}
               </div>
-              <div className="text-[11px] text-stone-400 mt-1">5年跨度压缩至12个月</div>
+              <div className="text-[10px] sm:text-[11px] text-stone-400 mt-1">5年跨度压缩至12个月</div>
             </div>
 
-            <div className="bg-stone-800/60 rounded-2xl p-4 border border-stone-700/60">
-              <div className="text-xs text-stone-400 font-medium">核心破局机制</div>
-              <div className="text-sm font-bold text-amber-300 mt-2">
+            <div className="bg-stone-800/60 rounded-2xl p-3 sm:p-4 border border-stone-700/60">
+              <div className="text-[11px] sm:text-xs text-stone-400 font-medium">核心破局机制</div>
+              <div className="text-xs sm:text-sm font-bold text-amber-300 mt-2">
                 48小时真实反馈闭环
               </div>
-              <div className="text-[11px] text-stone-400 mt-0.5">以终为始 · 拒绝排队</div>
+              <div className="text-[10px] sm:text-[11px] text-stone-400 mt-0.5">以终为始 · 拒绝排队</div>
             </div>
           </div>
         </div>
@@ -797,12 +876,25 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
+                      onClick={() => handleOpenConsultation(goal)}
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500/15 to-purple-500/15 hover:from-indigo-500/25 hover:to-purple-500/25 text-indigo-800 dark:text-indigo-200 text-xs font-black flex items-center gap-1.5 transition border border-indigo-500/30 shadow-sm"
+                      title="与AI教练开启诊断交流并做出最优安排"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>AI诊断与最优安排</span>
+                      {goal.lastOptimalArrangement && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="已生效最优排期" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => handleStartSupervision(goal)}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-extrabold flex items-center gap-1.5 transition border border-amber-500/30"
+                      className="px-3.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 text-xs font-extrabold flex items-center gap-1.5 transition border border-amber-500/30"
                       title="调用马斯克极限监督官，审计是否陷入线性慢速陷阱"
                     >
-                      <ShieldAlert className="w-3.5 h-3.5" />
-                      <span>马斯克极限监督</span>
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                      <span>极限监督</span>
                     </button>
 
                     <button
@@ -1155,6 +1247,32 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
                         })}
                       </div>
                     </div>
+
+                    {/* AI Coach Consultation & Optimal Arrangement Banner */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50/80 via-purple-50/60 to-amber-50/80 dark:from-indigo-950/30 dark:via-purple-950/20 dark:to-amber-950/30 border border-indigo-200/80 dark:border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                          <span className="text-xs font-black text-indigo-950 dark:text-indigo-200">
+                            {goal.lastOptimalArrangement ? '✨ 已生效的 AI 最优推进安排方案' : '🤖 AI教练深度诊断与最优安排'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-600 dark:text-stone-300">
+                          {goal.lastOptimalArrangement
+                            ? `未来 48 小时破局点：${goal.lastOptimalArrangement.coreFocusImmediate}`
+                            : '遇到推进瓶颈或无法按时交付？与教练实时对话，穿透假努力，重构 5X 最优推进方案。'}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenConsultation(goal)}
+                        className="shrink-0 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition"
+                      >
+                        <MessageSquareText className="w-3.5 h-3.5" />
+                        <span>{goal.lastOptimalArrangement ? '查看方案 / 继续诊断' : '进入AI教练诊断室'}</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1174,61 +1292,117 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
                   {editingGoal ? '编辑 5X 极限目标' : '构建 5X 极限目标（1年完成5年）'}
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 font-bold p-1"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleClearGoalForm}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold text-stone-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition flex items-center gap-1 border border-stone-200 dark:border-stone-700"
+                  title="一键清空表单所有已有内容"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>清空表单</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 font-bold p-1"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSaveForm} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto text-xs sm:text-sm">
               {/* AI Auto-Decompose Assistance Banner */}
-              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-amber-600" />
-                    <span>马斯克 AI 第一性原理极限拆解助手</span>
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-600" />
+                      <span>马斯克 AI 第一性原理极限生成与拆解</span>
+                    </div>
+                    <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                      支持全要素 AI 自动构想，也可根据你输入的关键词极速推导 1 年倒逼路径与 Q1-Q4 战役。
+                    </p>
                   </div>
-                  <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
-                    输入目标名称与5年愿景后，点击一键自动生成1年倒逼指标、删减废料清单与Q1-Q4战役路线。
-                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handleClearGoalForm}
+                    className="text-xs text-amber-800/70 hover:text-red-600 transition underline shrink-0"
+                  >
+                    重置所有字段
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleTriggerAiBreakdown}
-                  disabled={isAiDecomposing}
-                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold text-xs transition shadow flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50"
-                >
-                  {isAiDecomposing ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>正在第一性原理拆解...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-3.5 h-3.5" />
-                      <span>⚡ AI 一键极速拆解</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleAutofillEntireGoal}
+                    disabled={isAiDecomposing}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-stone-950 font-extrabold text-xs transition shadow flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {isAiDecomposing ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>AI 正在全要素推演生成...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-stone-950" />
+                        <span>✨ AI 全要素自动构想并填充</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTriggerAiBreakdown}
+                    disabled={isAiDecomposing}
+                    className="px-3.5 py-2 rounded-xl bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 font-bold text-xs transition border border-amber-300/60 dark:border-amber-700/60 flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                    <span>⚡ 基于当前输入拆解</span>
+                  </button>
+                </div>
               </div>
 
               {/* Goal Title */}
               <div>
-                <label className="block font-bold text-stone-800 dark:text-stone-200 mb-1">
-                  目标名称 *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="例如：打造年营收100万的全球独立SaaS产品矩阵 / 掌握大模型底层研发"
-                  className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-stone-800 dark:text-stone-200">
+                    目标名称 *
+                  </label>
+                  {formTitle && (
+                    <button
+                      type="button"
+                      onClick={() => setFormTitle('')}
+                      className="text-[11px] text-stone-400 hover:text-red-500 flex items-center gap-0.5"
+                    >
+                      <span>清空</span>
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    placeholder="例如：打造年营收100万的全球独立SaaS产品矩阵 / 掌握大模型底层研发"
+                    className="w-full px-4 py-2.5 pr-8 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
+                  />
+                  {formTitle && (
+                    <button
+                      type="button"
+                      onClick={() => setFormTitle('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 p-0.5"
+                      title="清除内容"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Category */}
@@ -1256,9 +1430,20 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
 
               {/* 5-Year Vision */}
               <div>
-                <label className="block font-bold text-stone-800 dark:text-stone-200 mb-1">
-                  原定 5 年常规愿景（传统慢速做法）
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-stone-800 dark:text-stone-200">
+                    原定 5 年常规愿景（传统慢速做法）
+                  </label>
+                  {formFiveYearVision && (
+                    <button
+                      type="button"
+                      onClick={() => setFormFiveYearVision('')}
+                      className="text-[11px] text-stone-400 hover:text-red-500"
+                    >
+                      清空
+                    </button>
+                  )}
+                </div>
                 <textarea
                   rows={2}
                   value={formFiveYearVision}
@@ -1270,9 +1455,20 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
 
               {/* 1-Year Extreme Target */}
               <div>
-                <label className="block font-bold text-amber-700 dark:text-amber-300 mb-1">
-                  倒逼 1 年极限完成指标（5X 时间压缩）*
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-amber-700 dark:text-amber-300">
+                    倒逼 1 年极限完成指标（5X 时间压缩）*
+                  </label>
+                  {formOneYearTarget && (
+                    <button
+                      type="button"
+                      onClick={() => setFormOneYearTarget('')}
+                      className="text-[11px] text-amber-700/70 hover:text-red-500"
+                    >
+                      清空
+                    </button>
+                  )}
+                </div>
                 <textarea
                   rows={2}
                   value={formOneYearTarget}
@@ -1285,9 +1481,20 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
               {/* First Principles: Truth & Deleted Processes */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-stone-800 dark:text-stone-200 mb-1">
-                    底层物理/事实真理 (Fundamental Truth)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-stone-800 dark:text-stone-200">
+                      底层物理/事实真理
+                    </label>
+                    {formFundamentalTruth && (
+                      <button
+                        type="button"
+                        onClick={() => setFormFundamentalTruth('')}
+                        className="text-[11px] text-stone-400 hover:text-red-500"
+                      >
+                        清空
+                      </button>
+                    )}
+                  </div>
                   <textarea
                     rows={3}
                     value={formFundamentalTruth}
@@ -1298,9 +1505,20 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-red-600 dark:text-red-400 mb-1">
-                    必须彻底删减的伪流程与伪需求 (每行一项)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-red-600 dark:text-red-400">
+                      必须彻底删减的伪流程 (每行一项)
+                    </label>
+                    {formDeletedProcessesText && (
+                      <button
+                        type="button"
+                        onClick={() => setFormDeletedProcessesText('')}
+                        className="text-[11px] text-red-400 hover:text-red-600"
+                      >
+                        清空
+                      </button>
+                    )}
+                  </div>
                   <textarea
                     rows={3}
                     value={formDeletedProcessesText}
@@ -1314,9 +1532,20 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
               {/* Core Bottleneck & Unconventional Path */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-stone-800 dark:text-stone-200 mb-1">
-                    当前唯一限速瓶颈 (Rate-limiting step)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-stone-800 dark:text-stone-200">
+                      当前唯一限速瓶颈
+                    </label>
+                    {formCoreBottleneck && (
+                      <button
+                        type="button"
+                        onClick={() => setFormCoreBottleneck('')}
+                        className="text-[11px] text-stone-400 hover:text-red-500"
+                      >
+                        清空
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={formCoreBottleneck}
@@ -1327,9 +1556,20 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-stone-800 dark:text-stone-200 mb-1">
-                    非常规非线性破局路径
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-stone-800 dark:text-stone-200">
+                      非常规非线性破局路径
+                    </label>
+                    {formUnconventionalPath && (
+                      <button
+                        type="button"
+                        onClick={() => setFormUnconventionalPath('')}
+                        className="text-[11px] text-stone-400 hover:text-red-500"
+                      >
+                        清空
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={formUnconventionalPath}
@@ -1342,9 +1582,20 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
 
               {/* Musk Directive */}
               <div>
-                <label className="block font-bold text-stone-800 dark:text-stone-200 mb-1">
-                  马斯克硬核监督训令 (直接严厉命令)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-stone-800 dark:text-stone-200">
+                    马斯克硬核监督训令 (直接严厉命令)
+                  </label>
+                  {formMuskDirective && (
+                    <button
+                      type="button"
+                      onClick={() => setFormMuskDirective('')}
+                      className="text-[11px] text-stone-400 hover:text-red-500"
+                    >
+                      清空
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={formMuskDirective}
@@ -1354,21 +1605,99 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
                 />
               </div>
 
+              {/* Milestone Breakdowns with Delete & Add */}
+              <div className="space-y-2.5 pt-2 border-t border-stone-150 dark:border-stone-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="font-bold text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
+                      <Target className="w-4 h-4 text-amber-500" />
+                      <span>年度季度极速拆解里程碑 ({formMilestones.length})</span>
+                    </label>
+                    <p className="text-[11px] text-stone-400">
+                      每个里程碑均可编辑、清空或点击垃圾桶独立删除
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddMilestone}
+                    className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs font-bold transition flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>添加里程碑</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {formMilestones.map((m, idx) => (
+                    <div
+                      key={m.id || idx}
+                      className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/80 dark:border-stone-700 flex flex-col sm:flex-row sm:items-center gap-2"
+                    >
+                      <input
+                        type="text"
+                        value={m.phase}
+                        onChange={(e) => handleUpdateMilestone(m.id, 'phase', e.target.value)}
+                        className="w-16 px-2 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 text-center font-bold text-xs"
+                        placeholder="阶段"
+                      />
+                      <input
+                        type="text"
+                        value={m.title}
+                        onChange={(e) => handleUpdateMilestone(m.id, 'title', e.target.value)}
+                        placeholder="里程碑核心交付目标"
+                        className="flex-1 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 text-xs font-medium"
+                      />
+                      <input
+                        type="text"
+                        value={m.verificationProof || ''}
+                        onChange={(e) => handleUpdateMilestone(m.id, 'verificationProof', e.target.value)}
+                        placeholder="硬核验收凭证（如链接、交易流水）"
+                        className="sm:w-48 px-2.5 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 text-xs text-stone-600 dark:text-stone-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMilestone(m.id)}
+                        className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition shrink-0 self-end sm:self-center"
+                        title="删除该里程碑"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {formMilestones.length === 0 && (
+                    <div className="p-4 rounded-xl border border-dashed border-stone-300 dark:border-stone-700 text-center text-xs text-stone-400">
+                      暂无里程碑，点击「✨ AI 全要素自动构想并填充」或「+ 添加里程碑」生成
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Modal Buttons */}
-              <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 font-bold hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                  onClick={handleClearGoalForm}
+                  className="px-4 py-2.5 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs font-bold transition flex items-center gap-1"
                 >
-                  取消
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>清空所有内容</span>
                 </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold transition shadow"
-                >
-                  保存 5X 极限目标
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 font-bold hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold transition shadow"
+                  >
+                    保存 5X 极限目标
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1481,6 +1810,479 @@ export const MuskGoalAccelerationView: React.FC<Props> = ({
                   </div>
                 </div>
               ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: AI Coach Goal Consultation & Optimal Arrangement */}
+      {isConsultModalOpen && consultingGoal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-5 bg-stone-950/75 backdrop-blur-md overflow-hidden">
+          <div className="bg-white dark:bg-stone-900 rounded-t-3xl sm:rounded-3xl border-t sm:border border-stone-200 dark:border-stone-800 shadow-2xl w-full max-w-4xl flex flex-col h-[94dvh] sm:h-[90vh] max-h-[880px] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-stone-150 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-stone-50 via-indigo-50/30 to-amber-50/30 dark:from-stone-900 dark:via-indigo-950/20 dark:to-stone-900 gap-2.5 shrink-0">
+              <div className="flex items-center justify-between sm:justify-start gap-2.5 min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-amber-500 p-0.5 shadow-md shrink-0 flex items-center justify-center">
+                    <div className="w-full h-full bg-stone-950 rounded-[14px] flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-sm sm:text-base font-black text-stone-900 dark:text-white truncate">
+                        {consultingGoal.title}
+                      </h3>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold border border-amber-500/20 shrink-0">
+                        5X 诊断
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-500 dark:text-stone-400 truncate">
+                      倒逼指标：<span className="font-semibold text-stone-700 dark:text-stone-300">{consultingGoal.oneYearTarget}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsConsultModalOpen(false)}
+                  className="sm:hidden p-1.5 rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                  title="关闭"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Tabs & Desktop Close */}
+              <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                <div className="flex p-1 bg-stone-100 dark:bg-stone-800 rounded-xl w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => setConsultTab('dialogue')}
+                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      consultTab === 'dialogue'
+                        ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-sm'
+                        : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
+                    }`}
+                  >
+                    <MessageSquareText className="w-3.5 h-3.5" />
+                    <span>诊断交流</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setConsultTab('optimal_plan')}
+                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      consultTab === 'optimal_plan'
+                        ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-sm'
+                        : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>最优安排方案</span>
+                    {optimalPlan && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    )}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsConsultModalOpen(false)}
+                  className="hidden sm:flex p-2 rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                  title="关闭"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Toast Notice */}
+            {consultApplyToast && (
+              <div className="px-6 py-2.5 bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-between shadow-md shrink-0 animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{consultApplyToast}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setConsultApplyToast(null)}
+                  className="text-white/80 hover:text-white text-xs font-bold ml-4"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-hidden flex flex-col bg-stone-50/50 dark:bg-stone-950/40">
+              {/* TAB 1: Dialogue & Real-Time Diagnosis */}
+              {consultTab === 'dialogue' && (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* Messages Area */}
+                  <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4">
+                    {consultMessages.map((msg) => {
+                      const isCoach = msg.role === 'assistant';
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex gap-3 max-w-[88%] ${isCoach ? 'mr-auto' : 'ml-auto flex-row-reverse'}`}
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center text-xs font-black shadow-sm ${
+                              isCoach
+                                ? 'bg-stone-900 text-amber-400 dark:bg-amber-500 dark:text-stone-950'
+                                : 'bg-indigo-600 text-white'
+                            }`}
+                          >
+                            {isCoach ? <Bot className="w-4 h-4" /> : '我'}
+                          </div>
+
+                          <div className="space-y-1">
+                            <div
+                              className={`p-4 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-sm ${
+                                isCoach
+                                  ? 'bg-white dark:bg-stone-850 text-stone-850 dark:text-stone-100 border border-stone-200/80 dark:border-stone-800'
+                                  : 'bg-indigo-600 text-white'
+                              }`}
+                            >
+                              {/* Simple markdown parser for message content */}
+                              <div className="space-y-2 whitespace-pre-wrap">
+                                {msg.content.split('\n\n').map((paragraph, pIdx) => {
+                                  if (paragraph.startsWith('### ')) {
+                                    return (
+                                      <h4 key={pIdx} className="font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">
+                                        {paragraph.replace('### ', '')}
+                                      </h4>
+                                    );
+                                  }
+                                  return (
+                                    <p key={pIdx} className="leading-relaxed">
+                                      {paragraph}
+                                    </p>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            <div
+                              className={`text-[10px] text-stone-400 font-mono px-1 ${
+                                isCoach ? 'text-left' : 'text-right'
+                              }`}
+                            >
+                              {msg.timestamp}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Streaming indicator */}
+                    {isConsultStreaming && (
+                      <div className="flex gap-3 mr-auto max-w-[85%] animate-pulse">
+                        <div className="w-8 h-8 rounded-xl bg-stone-900 text-amber-400 flex items-center justify-center shrink-0">
+                          <Bot className="w-4 h-4" />
+                        </div>
+                        <div className="p-3.5 rounded-2xl bg-white dark:bg-stone-850 border border-stone-200/80 dark:border-stone-800 text-xs text-stone-500 dark:text-stone-400 flex items-center gap-2">
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-500" />
+                          <span>AI教练正在结合马斯克第一性原理诊断与推演中...</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  {/* Quick Diagnostic Suggestions */}
+                  <div className="px-4 py-2 border-t border-stone-150 dark:border-stone-800/80 bg-white dark:bg-stone-900 shrink-0">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+                      <span className="text-[11px] font-bold text-stone-400 shrink-0 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-amber-500" />
+                        快捷诊断:
+                      </span>
+                      {[
+                        '帮我诊断当前是否有假努力或时间黑洞？',
+                        '如果时间压缩到半年甚至三个月，该砍掉什么？',
+                        '未来48小时最关键的单点突破口是什么？',
+                        '重新按第一性原理重组我的推进安排',
+                      ].map((promptText, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => handleSendConsultMessage(promptText)}
+                          disabled={isConsultStreaming}
+                          className="px-3 py-1 rounded-full bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 shrink-0 text-xs transition disabled:opacity-50"
+                        >
+                          {promptText}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Input Toolbar & Generate Optimal Plan CTA */}
+                  <div className="p-4 border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 shrink-0 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleToggleConsultSpeech}
+                        className={`p-2.5 rounded-2xl border transition ${
+                          isConsultListening
+                            ? 'bg-red-500 border-red-600 text-white animate-pulse'
+                            : 'bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700'
+                        }`}
+                        title={isConsultListening ? '停止语音录制' : '语音输入'}
+                      >
+                        {isConsultListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                      </button>
+
+                      <input
+                        type="text"
+                        value={consultInput}
+                        onChange={(e) => setConsultInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSendConsultMessage();
+                          }
+                        }}
+                        placeholder="向教练倾诉推进遇到的卡点、犹豫或时间消耗，按 Enter 发送..."
+                        disabled={isConsultStreaming}
+                        className="flex-1 px-4 py-2.5 rounded-2xl bg-stone-100 dark:bg-stone-800 text-stone-900 dark:text-white border border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-stone-850 text-xs sm:text-sm outline-none transition"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => handleSendConsultMessage()}
+                        disabled={!consultInput.trim() || isConsultStreaming}
+                        className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs sm:text-sm transition disabled:opacity-40 flex items-center gap-1.5"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>发送</span>
+                      </button>
+                    </div>
+
+                    {/* Master Action: Generate Optimal Plan */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-stone-100 dark:border-stone-800/60">
+                      <span className="text-[11px] text-stone-400">
+                        交流完毕后，点击右侧让教练融合第一性原理生成排期蓝图 👇
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={handleGenerateOptimalPlan}
+                        disabled={isGeneratingOptimalPlan}
+                        className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition disabled:opacity-60"
+                      >
+                        {isGeneratingOptimalPlan ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>正在推演并生成最优排期方案...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="w-4 h-4" />
+                            <span>✨ 生成诊断并做出最优安排</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: Optimal Arrangement Blueprint */}
+              {consultTab === 'optimal_plan' && (
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                  {optimalPlan ? (
+                    <div className="space-y-6">
+                      {/* Top Action Ribbon */}
+                      <div className="p-4 rounded-3xl bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 text-white border border-stone-800 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Flame className="w-5 h-5 text-amber-400 fill-amber-400" />
+                            <span className="text-sm sm:text-base font-black text-amber-300">
+                              第一性原理最优安排方案已就绪
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-300 leading-relaxed">
+                            {optimalPlan.diagnosisSummary || optimalPlan.ruthlessAuditSummary || '剔除一切低价值工序，将核心重心压至 48 小时内的可验证交付。'}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={handleApplyOptimalPlan}
+                            className="px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md transition"
+                          >
+                            <Check className="w-4 h-4 stroke-[3]" />
+                            <span>采纳并一键应用此最优安排</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Immediate 48-Hour Breakthrough Point */}
+                      <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border-2 border-amber-500/40 dark:border-amber-500/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-black uppercase text-amber-700 dark:text-amber-400 font-mono tracking-wider">
+                            <Target className="w-4 h-4 text-amber-500" />
+                            <span>未来 48 小时单点破局核心重心（最高优先级）</span>
+                          </div>
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500 text-stone-950">
+                            DO THIS FIRST
+                          </span>
+                        </div>
+                        <p className="text-base sm:text-lg font-black text-stone-900 dark:text-white leading-relaxed">
+                          {optimalPlan.coreFocusImmediate}
+                        </p>
+                        <p className="text-xs text-stone-500 dark:text-stone-400">
+                          教练指示：暂停其他一切细枝末节的准备工作，首先攻破此卡点以触发多米诺骨牌效应。
+                        </p>
+                      </div>
+
+                      {/* Bottleneck vs Unconventional Path */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="p-4 rounded-2xl bg-red-50/70 dark:bg-red-950/20 border border-red-200/80 dark:border-red-900/40 space-y-1.5">
+                          <div className="text-xs font-black text-red-700 dark:text-red-400 flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            <span>唯一限速瓶颈 (Rate-Limiting Bottleneck)</span>
+                          </div>
+                          <p className="text-xs sm:text-sm font-bold text-red-950 dark:text-red-200 leading-relaxed">
+                            {optimalPlan.newBottleneck || consultingGoal.firstPrinciples.coreBottleneck}
+                          </p>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-900/40 space-y-1.5">
+                          <div className="text-xs font-black text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>非常规非线性捷径 (Unconventional Shortcut)</span>
+                          </div>
+                          <p className="text-xs sm:text-sm font-bold text-indigo-950 dark:text-indigo-200 leading-relaxed">
+                            {optimalPlan.newUnconventionalPath || consultingGoal.firstPrinciples.unconventionalPath}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Optimized Milestones (Q1-Q4) */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs sm:text-sm font-extrabold text-stone-900 dark:text-white flex items-center gap-2">
+                            <ListChecks className="w-4 h-4 text-amber-500" />
+                            <span>重新优化的 5X 极限里程碑排期（硬核交付）</span>
+                          </h4>
+                          <span className="text-[11px] text-stone-400">
+                            共 {optimalPlan.optimizedMilestones?.length || 0} 个阶段交付
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {optimalPlan.optimizedMilestones?.map((m) => (
+                            <div
+                              key={m.id}
+                              className="p-4 rounded-2xl bg-white dark:bg-stone-850 border border-stone-200/80 dark:border-stone-800 space-y-2 shadow-sm"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-mono font-black px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                                  {m.phase}
+                                </span>
+                                <span className="text-xs font-mono font-bold text-stone-400 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  第 {m.targetDays} 天前达成
+                                </span>
+                              </div>
+
+                              <div className="text-xs sm:text-sm font-extrabold text-stone-900 dark:text-white">
+                                {m.title}
+                              </div>
+
+                              <div className="text-xs text-stone-500 dark:text-stone-400 flex items-start gap-1.5 pt-1 border-t border-stone-100 dark:border-stone-800">
+                                <span className="font-bold text-stone-700 dark:text-stone-300 shrink-0">严苛交付凭据:</span>
+                                <span className="text-stone-600 dark:text-stone-300 leading-tight">
+                                  {m.verificationProof}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Weekly Pacing Guideline */}
+                      {optimalPlan.weeklyPacingGuideline && (
+                        <div className="p-4 rounded-2xl bg-stone-100 dark:bg-stone-850 border border-stone-200 dark:border-stone-800 space-y-1.5">
+                          <div className="text-xs font-bold text-stone-600 dark:text-stone-300 flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                            <span>每周冲刺与推进节奏指南</span>
+                          </div>
+                          <p className="text-xs sm:text-sm text-stone-700 dark:text-stone-300 leading-relaxed whitespace-pre-wrap">
+                            {optimalPlan.weeklyPacingGuideline}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Bottom Footer Actions */}
+                      <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-stone-200 dark:border-stone-800">
+                        <button
+                          type="button"
+                          onClick={() => setConsultTab('dialogue')}
+                          className="px-4 py-2 rounded-xl text-xs font-bold text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-800 transition"
+                        >
+                          ← 返回诊断对话，继续调整细节
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleApplyOptimalPlan}
+                          className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition"
+                        >
+                          <Check className="w-4 h-4 stroke-[3]" />
+                          <span>确认并采纳此方案，即刻重构目标排期</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Empty State for Plan */
+                    <div className="h-full py-16 flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4">
+                      <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+                        <Sparkles className="w-8 h-8" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-base font-extrabold text-stone-900 dark:text-white">
+                          尚未生成专属最优安排方案
+                        </h4>
+                        <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
+                          在【诊断交流】中与教练探讨当前卡点，或直接点击下方按钮，由 AI 教练基于第一性原理为你定制最优排期与破局蓝图。
+                        </p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setConsultTab('dialogue')}
+                          className="px-4 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 text-xs font-bold text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                        >
+                          前往诊断交流
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleGenerateOptimalPlan}
+                          disabled={isGeneratingOptimalPlan}
+                          className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs shadow-md flex items-center gap-1.5 transition"
+                        >
+                          {isGeneratingOptimalPlan ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                              <span>推演中...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Wand2 className="w-4 h-4" />
+                              <span>立即生成最优安排方案</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

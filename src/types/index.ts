@@ -127,7 +127,7 @@ export interface RetrospectiveReport {
 // ==========================================
 export interface MuskGoalMilestone {
   id: string;
-  phase: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+  phase: 'Q1' | 'Q2' | 'Q3' | 'Q4' | string;
   title: string;
   targetDays?: number;
   completed: boolean;
@@ -180,7 +180,8 @@ export interface GoalConsultationMessage {
 
 export interface GoalOptimalArrangement {
   diagnosisSummary: string;
-  reasoning: string;
+  reasoning?: string;
+  ruthlessAuditSummary?: string;
   coreFocusImmediate: string;
   newBottleneck: string;
   newUnconventionalPath: string;

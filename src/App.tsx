@@ -368,7 +368,7 @@ export default function App() {
       />
 
       {/* Main View Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 md:pb-8">
         {activeTab === 'today' && (
           <TodayOneThingView
             projects={projects}
@@ -443,7 +443,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/60 dark:border-slate-800 py-6 text-center text-xs text-slate-400">
+      <footer className="border-t border-stone-200/60 dark:border-stone-800 py-6 mb-16 md:mb-0 text-center text-xs text-stone-400 px-4">
         <p>LifeCompass · 人生教练 — 工作 · 健康 · 财富 · 认知 四大维度深度监督、记录分析与复盘纠偏</p>
       </footer>
 
