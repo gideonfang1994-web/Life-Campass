@@ -9,7 +9,13 @@
     "start": "tsx server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "build:standalone": "node build-standalone.mjs",
+    "test:plan": "node tools/test-plan-reconciliation.mjs",
+    "test:seed-dates": "node tools/simulate-seed-dates.mjs 2026-01-01 730",
+    "test:health": "node tools/test-health.mjs",
+    "e2e:plan": "node tools/e2e-plan-board.mjs",
+    "e2e:health": "node tools/e2e-health.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -28,7 +34,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",

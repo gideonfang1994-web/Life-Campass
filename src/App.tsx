@@ -7,6 +7,10 @@ import {
   PlanActualRecord,
   ProjectCategory,
   AcceleratedGoal,
+  PlanNode,
+  HealthDailyEntry,
+  HealthGoals,
+  HealthImportBatch,
 } from './types';
 import {
   INITIAL_PROJECTS,
@@ -16,9 +20,13 @@ import {
   INITIAL_PLAN_ACTUAL_RECORDS,
   INITIAL_ACCELERATED_GOALS,
 } from './data/initialData';
+import { INITIAL_PLAN_NODES } from './data/planSeedData';
+import { INITIAL_HEALTH_ENTRIES } from './data/healthSeedData';
 import { Header, ActiveTab } from './components/Header';
 import { TodayOneThingView } from './components/TodayOneThingView';
 import { MuskGoalAccelerationView } from './components/MuskGoalAccelerationView';
+import { PlanBoardView } from './components/PlanBoardView';
+import { HealthMetricsView } from './components/HealthMetricsView';
 import { DimensionHubView } from './components/DimensionHubView';
 import { PlanVsActualView } from './components/PlanVsActualView';
 import { ReviewAndCoachView } from './components/ReviewAndCoachView';
@@ -28,6 +36,7 @@ import { ProjectDiagnosisModal } from './components/ProjectDiagnosisModal';
 import { CourseCorrectionModal } from './components/CourseCorrectionModal';
 import { ZenFocusTimer } from './components/ZenFocusTimer';
 import { exportStandaloneHtmlFile } from './utils/htmlExporter';
+import { DEFAULT_HEALTH_GOALS } from './utils/healthAnalytics';
 
 export default function App() {
   // Navigation
@@ -106,6 +115,56 @@ export default function App() {
     return INITIAL_ACCELERATED_GOALS;
   });
 
+  // 日/周/月/季/年 五级计划体系
+  const [planNodes, setPlanNodes] = useState<PlanNode[]>(() => {
+    const saved = localStorage.getItem('life_coach_plan_nodes');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_PLAN_NODES;
+  });
+
+  // 量化健康：每日睡眠 / 运动 / 饮食 / 身体数据
+  const [healthEntries, setHealthEntries] = useState<HealthDailyEntry[]>(() => {
+    const saved = localStorage.getItem('life_coach_health_entries');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_HEALTH_ENTRIES;
+  });
+
+  const [healthGoals, setHealthGoals] = useState<HealthGoals>(() => {
+    const saved = localStorage.getItem('life_coach_health_goals');
+    if (saved) {
+      try {
+        return { ...DEFAULT_HEALTH_GOALS, ...JSON.parse(saved) };
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return DEFAULT_HEALTH_GOALS;
+  });
+
+  const [healthImportBatches, setHealthImportBatches] = useState<HealthImportBatch[]>(() => {
+    const saved = localStorage.getItem('life_coach_health_imports');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return [];
+  });
+
   // Sync to LocalStorage
   useEffect(() => {
     localStorage.setItem('life_coach_projects', JSON.stringify(projects));
@@ -130,6 +189,22 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('life_coach_accelerated_goals', JSON.stringify(acceleratedGoals));
   }, [acceleratedGoals]);
+
+  useEffect(() => {
+    localStorage.setItem('life_coach_plan_nodes', JSON.stringify(planNodes));
+  }, [planNodes]);
+
+  useEffect(() => {
+    localStorage.setItem('life_coach_health_entries', JSON.stringify(healthEntries));
+  }, [healthEntries]);
+
+  useEffect(() => {
+    localStorage.setItem('life_coach_health_goals', JSON.stringify(healthGoals));
+  }, [healthGoals]);
+
+  useEffect(() => {
+    localStorage.setItem('life_coach_health_imports', JSON.stringify(healthImportBatches));
+  }, [healthImportBatches]);
 
   // Modal States
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -302,6 +377,10 @@ export default function App() {
       retrospectives,
       planActualRecords,
       acceleratedGoals,
+      planNodes,
+      healthEntries,
+      healthGoals,
+      healthImportBatches,
       exportedAt: new Date().toISOString(),
     };
     const blob = new Blob([JSON.stringify(fullBackup, null, 2)], {
@@ -316,7 +395,16 @@ export default function App() {
   };
 
   const handleExportHtml = () => {
-    exportStandaloneHtmlFile(projects, logs, wheelScores, retrospectives, acceleratedGoals);
+    exportStandaloneHtmlFile(
+      projects,
+      logs,
+      wheelScores,
+      retrospectives,
+      acceleratedGoals,
+      planNodes,
+      healthEntries,
+      healthGoals
+    );
   };
 
   const handleImportData = (jsonData: string) => {
@@ -339,6 +427,18 @@ export default function App() {
     if (parsed.acceleratedGoals && Array.isArray(parsed.acceleratedGoals)) {
       setAcceleratedGoals(parsed.acceleratedGoals);
     }
+    if (parsed.planNodes && Array.isArray(parsed.planNodes)) {
+      setPlanNodes(parsed.planNodes);
+    }
+    if (parsed.healthEntries && Array.isArray(parsed.healthEntries)) {
+      setHealthEntries(parsed.healthEntries);
+    }
+    if (parsed.healthGoals) {
+      setHealthGoals({ ...DEFAULT_HEALTH_GOALS, ...parsed.healthGoals });
+    }
+    if (parsed.healthImportBatches && Array.isArray(parsed.healthImportBatches)) {
+      setHealthImportBatches(parsed.healthImportBatches);
+    }
     alert('备份数据导入成功！');
   };
 
@@ -349,6 +449,10 @@ export default function App() {
     setRetrospectives([INITIAL_RETROSPECTIVE]);
     setPlanActualRecords(INITIAL_PLAN_ACTUAL_RECORDS);
     setAcceleratedGoals(INITIAL_ACCELERATED_GOALS);
+    setPlanNodes(INITIAL_PLAN_NODES);
+    setHealthEntries(INITIAL_HEALTH_ENTRIES);
+    setHealthGoals(DEFAULT_HEALTH_GOALS);
+    setHealthImportBatches([]);
     localStorage.removeItem('life_coach_chat_messages');
     alert('已成功重置为精选种子演示数据。');
   };
@@ -396,6 +500,29 @@ export default function App() {
             onUpdateGoal={handleUpdateGoal}
             onDeleteGoal={handleDeleteGoal}
             onOpenCoachChat={() => setActiveTab('coach')}
+          />
+        )}
+
+        {activeTab === 'plan_board' && (
+          <PlanBoardView
+            nodes={planNodes}
+            projects={projects}
+            acceleratedGoals={acceleratedGoals}
+            onUpdateNodes={setPlanNodes}
+            onOpenCoachChat={() => setActiveTab('coach')}
+          />
+        )}
+
+        {activeTab === 'health_metrics' && (
+          <HealthMetricsView
+            entries={healthEntries}
+            goals={healthGoals}
+            importBatches={healthImportBatches}
+            onUpdateEntries={setHealthEntries}
+            onUpdateGoals={setHealthGoals}
+            onAddImportBatch={(batch) =>
+              setHealthImportBatches((prev) => [batch, ...prev].slice(0, 50))
+            }
           />
         )}
 

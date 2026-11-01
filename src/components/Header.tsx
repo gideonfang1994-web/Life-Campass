@@ -16,9 +16,18 @@ import {
   Scale,
   Target,
   Flame,
+  GitBranch,
+  HeartPulse,
 } from 'lucide-react';
 
-export type ActiveTab = 'today' | 'goal_acceleration' | 'dimensions' | 'plan_actual' | 'coach';
+export type ActiveTab =
+  | 'today'
+  | 'goal_acceleration'
+  | 'plan_board'
+  | 'health_metrics'
+  | 'dimensions'
+  | 'plan_actual'
+  | 'coach';
 
 interface Props {
   activeTab: ActiveTab;
@@ -55,12 +64,14 @@ export const Header: React.FC<Props> = ({
     }
   };
 
-  const navItems: { id: ActiveTab; label: string; icon: any }[] = [
-    { id: 'today', label: '今日焦点', icon: Target },
-    { id: 'goal_acceleration', label: '目标实现', icon: Flame },
-    { id: 'dimensions', label: '四大维度', icon: FolderKanban },
-    { id: 'plan_actual', label: '计划与实绩', icon: Scale },
-    { id: 'coach', label: '复盘与教练', icon: MessageSquareQuote },
+  const navItems: { id: ActiveTab; label: string; shortLabel?: string; icon: any }[] = [
+    { id: 'today', label: '今日焦点', shortLabel: '今日', icon: Target },
+    { id: 'goal_acceleration', label: '目标实现', shortLabel: '目标', icon: Flame },
+    { id: 'plan_board', label: '日周月年', shortLabel: '计划板', icon: GitBranch },
+    { id: 'health_metrics', label: '量化健康', shortLabel: '量化', icon: HeartPulse },
+    { id: 'dimensions', label: '四大维度', shortLabel: '维度', icon: FolderKanban },
+    { id: 'plan_actual', label: '计划与实绩', shortLabel: '实绩', icon: Scale },
+    { id: 'coach', label: '复盘与教练', shortLabel: '教练', icon: MessageSquareQuote },
   ];
 
   return (
@@ -99,6 +110,8 @@ export const Header: React.FC<Props> = ({
                     key={item.id}
                     type="button"
                     onClick={() => onTabChange(item.id)}
+                    data-testid={`nav-tab-desktop-${item.id}`}
+                    data-active={isSelected ? 'true' : 'false'}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
                       isSelected
                         ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-white shadow-sm'
@@ -112,6 +125,10 @@ export const Header: React.FC<Props> = ({
                             ? 'text-amber-500 fill-amber-500'
                             : item.id === 'today'
                             ? 'text-emerald-500'
+                            : item.id === 'plan_board'
+                            ? 'text-teal-500'
+                            : item.id === 'health_metrics'
+                            ? 'text-rose-500'
                             : item.id === 'dimensions'
                             ? 'text-blue-500'
                             : item.id === 'plan_actual'
@@ -167,7 +184,7 @@ export const Header: React.FC<Props> = ({
         aria-label="移动端底部导航"
         className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-stone-900/95 backdrop-blur-xl border-t border-stone-200/90 dark:border-stone-800 md:hidden pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]"
       >
-        <div className="grid grid-cols-5 items-stretch h-15 px-1">
+        <div className="grid grid-cols-7 items-stretch h-15 px-0.5">
           {navItems.map((item) => {
             const isSelected = activeTab === item.id;
             const Icon = item.icon;
@@ -176,6 +193,9 @@ export const Header: React.FC<Props> = ({
                 key={item.id}
                 type="button"
                 onClick={() => onTabChange(item.id)}
+                data-testid={`nav-tab-${item.id}`}
+                data-active={isSelected ? 'true' : 'false'}
+                aria-label={item.label}
                 className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all duration-150 min-h-[48px] active:scale-95 ${
                   isSelected
                     ? 'text-stone-950 dark:text-white font-extrabold'
@@ -184,28 +204,34 @@ export const Header: React.FC<Props> = ({
               >
                 <div className="relative">
                   <Icon
-                    className={`w-5 h-5 transition-transform ${
-                      isSelected
-                        ? item.id === 'goal_acceleration'
-                          ? 'text-amber-500 fill-amber-500 scale-110'
-                          : item.id === 'today'
-                          ? 'text-emerald-500 scale-110'
-                          : item.id === 'dimensions'
-                          ? 'text-blue-500 scale-110'
-                          : item.id === 'plan_actual'
-                          ? 'text-indigo-500 scale-110'
-                          : 'text-purple-500 scale-110'
+                      className={`w-5 h-5 transition-transform ${
+                        isSelected
+                          ? item.id === 'goal_acceleration'
+                            ? 'text-amber-500 fill-amber-500 scale-110'
+                            : item.id === 'today'
+                            ? 'text-emerald-500 scale-110'
+                            : item.id === 'plan_board'
+                            ? 'text-teal-500 scale-110'
+                            : item.id === 'health_metrics'
+                            ? 'text-rose-500 scale-110'
+                            : item.id === 'dimensions'
+                            ? 'text-blue-500 scale-110'
+                            : item.id === 'plan_actual'
+                            ? 'text-indigo-500 scale-110'
+                            : 'text-purple-500 scale-110'
                         : 'text-stone-400'
-                    }`}
-                  />
+                      }`}
+                    />
                   {item.id === 'goal_acceleration' && (
                     <span className="absolute -top-1 -right-2.5 px-1 py-0.2 text-[9px] font-black leading-none rounded-full bg-amber-500 text-stone-950 shadow-xs">
                       5X
                     </span>
                   )}
                 </div>
-                <span className={`text-[10px] sm:text-[11px] mt-0.5 tracking-tight ${isSelected ? 'font-black' : ''}`}>
-                  {item.label}
+                <span className={`text-[9px] sm:text-[11px] mt-0.5 tracking-tight leading-none ${
+                  isSelected ? 'font-black' : ''
+                }`}>
+                  {item.shortLabel || item.label}
                 </span>
                 {isSelected && (
                   <span className="w-1 h-1 rounded-full bg-stone-900 dark:bg-white mt-0.5" />

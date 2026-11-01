@@ -561,7 +561,7 @@ export const DailyLogModal: React.FC<Props> = ({
                       type="number"
                       min="0"
                       max="100"
-                      step="5"
+                      step="1"
                       value={projectProgressDelta}
                       onChange={(e) => setProjectProgressDelta(parseInt(e.target.value) || 0)}
                       className="w-16 px-2 py-1 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-center"
