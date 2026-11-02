@@ -358,7 +358,14 @@ function check(name, cond, detail = '') {
   // data-node-progress 与引擎结果一致，确保 UI 不是画了个假的进度条。
   console.log('\n════════ 组 3b/6：DOM 进度一致性 ════════');
   const domProg = await evalJs(
-    `// 切到年度层，把整棵树渲染出来
+    `// 计划板默认落在「时间线」视图。本组验证的是层级树的进度透传，
+     // 必须先显式切到层级树，否则 querySelector('plan-node') 一个都查不到。
+     const listBtn = document.querySelector('[data-testid="plan-view-list"]');
+     if (listBtn && listBtn.getAttribute('data-active') !== 'true') {
+       listBtn.click(); await new Promise(r => setTimeout(r, 600));
+     }
+
+     // 切到年度层，把整棵树渲染出来
      const yearTab = document.querySelector('[data-testid="plan-cycle-tab"][data-cycle="year"]');
      if (yearTab) { yearTab.click(); await new Promise(r => setTimeout(r, 600)); }
 
@@ -547,7 +554,13 @@ function check(name, cond, detail = '') {
 
   // 回到周层并验证展开/收起可逆
   const expandRes = await evalJs(
-    `// 先切到周层
+    `// 展开/收起只存在于层级树视图，先确保切过去
+     const listBtn = document.querySelector('[data-testid="plan-view-list"]');
+     if (listBtn && listBtn.getAttribute('data-active') !== 'true') {
+       listBtn.click(); await new Promise(r => setTimeout(r, 600));
+     }
+
+     // 先切到周层
      const weekTab = document.querySelector('[data-testid="plan-cycle-tab"][data-cycle="week"]');
      if (weekTab) { weekTab.click(); await new Promise(r => setTimeout(r, 700)); }
 
@@ -587,6 +600,264 @@ function check(name, cond, detail = '') {
     expandRes.grew === true && expandRes.expanded === 'true',
     `${expandRes.before} → ${expandRes.after} 个节点，expanded=${expandRes.expanded}`
   );
+
+  // ============ 组 5.5：时间线视图 ============
+  console.log('\n════════ 组 5.5/6：时间线视图 ════════');
+
+  // 5.5.0 归位：前面的组为了验证层级树，把视图切到了 list。
+  // 这里先切回时间线，再验证时间线本身——否则断言的是"上个组留下的状态"。
+  const resetToTimeline = await evalJs(
+    `const tlBtn = document.querySelector('[data-testid="plan-view-timeline"]');
+     if (!tlBtn) return { ok: false, reason: 'no timeline button' };
+     if (tlBtn.getAttribute('data-active') !== 'true') {
+       tlBtn.click();
+       await new Promise(r => setTimeout(r, 800));
+     }
+     const sw = document.querySelector('[data-testid="plan-view-switch"]');
+     return { ok: true, view: sw ? sw.getAttribute('data-view') : null };`
+  );
+  check('可切回时间线视图', resetToTimeline.ok === true && resetToTimeline.view === 'timeline', JSON.stringify(resetToTimeline));
+
+  // 5.5.1 视图切换器存在且时间线已激活
+  const switchState = await evalJs(
+    `const sw = document.querySelector('[data-testid="plan-view-switch"]');
+     const tlBtn = document.querySelector('[data-testid="plan-view-timeline"]');
+     const lsBtn = document.querySelector('[data-testid="plan-view-list"]');
+     return {
+       hasSwitch: !!sw,
+       hasTlBtn: !!tlBtn,
+       hasLsBtn: !!lsBtn,
+       view: sw ? sw.getAttribute('data-view') : null,
+       tlActive: tlBtn ? tlBtn.getAttribute('data-active') : null,
+       lsActive: lsBtn ? lsBtn.getAttribute('data-active') : null,
+       hasTimelineRoot: !!document.querySelector('[data-testid="plan-timeline"]'),
+       hasTreeRoot: !!document.querySelector('[data-testid="plan-node"]'),
+     };`
+  );
+  check('存在视图切换器', switchState.hasSwitch === true, JSON.stringify(switchState));
+  check('切换器含「时间线」「层级树」两个按钮', switchState.hasTlBtn && switchState.hasLsBtn);
+  check('时间线视图已激活', switchState.view === 'timeline' && switchState.tlActive === 'true');
+  check('时间线激活时不渲染层级树', switchState.hasTreeRoot === false);
+  check('层级树按钮未激活', switchState.lsActive === 'false');
+  check('时间线容器已挂载', switchState.hasTimelineRoot === true);
+
+  // 5.5.2 时间线骨架：刻度、汇总、今天定位
+  const tlSkeleton = await evalJs(
+    `const root = document.querySelector('[data-testid="plan-timeline"]');
+     if (!root) return { ok: false };
+     const buckets = Array.from(document.querySelectorAll('[data-testid="timeline-bucket"]'));
+     const summary = document.querySelector('[data-testid="timeline-summary"]');
+     const spans = Array.from(document.querySelectorAll('[data-testid="timeline-span-tab"]'));
+     const todayCell = document.querySelector('[data-testid="timeline-bucket"][data-bucket-today="true"]');
+     const addBtns = Array.from(document.querySelectorAll('[data-testid="timeline-add"]'));
+     return {
+       ok: true,
+       span: root.getAttribute('data-span'),
+       granularity: root.getAttribute('data-granularity'),
+       bucketCount: buckets.length,
+       summaryNodes: summary ? Number(summary.getAttribute('data-node-count')) : null,
+       spanCount: spans.length,
+       spanLabels: spans.map(s => s.getAttribute('data-span')),
+       hasToday: !!todayCell,
+       todayCount: document.querySelectorAll('[data-testid="timeline-bucket"][data-bucket-today="true"]').length,
+       addCount: addBtns.length,
+       // 每格的 data-bucket-start 必须是 YYYY-MM-DD
+       badStartKeys: buckets.map(b => b.getAttribute('data-bucket-start'))
+         .filter(k => !/^\\d{4}-\\d{2}-\\d{2}$/.test(k || '')),
+       // 刻度周期层级必须全一致（同一粒度下不该混 cycle）
+       cycles: [...new Set(buckets.map(b => b.getAttribute('data-bucket-cycle')))],
+       // 今天之前的格子必须标 past，之后标 future
+       pastCount: buckets.filter(b => b.getAttribute('data-bucket-state') === 'past').length,
+       futureCount: buckets.filter(b => b.getAttribute('data-bucket-state') === 'future').length,
+     };`
+  );
+  check('时间线渲染出刻度', tlSkeleton.ok === true && tlSkeleton.bucketCount > 0, JSON.stringify(tlSkeleton).slice(0, 300));
+  check(
+    '刻度数在 7-31 之间（不爆炸）',
+    typeof tlSkeleton.bucketCount === 'number' &&
+      tlSkeleton.bucketCount >= 7 &&
+      tlSkeleton.bucketCount <= 31,
+    `${tlSkeleton.bucketCount} 格`
+  );
+  check('四个跨度切换齐全', tlSkeleton.spanCount === 4, JSON.stringify(tlSkeleton.spanLabels));
+  check(
+    '刻度 startKey 全为合法日期',
+    Array.isArray(tlSkeleton.badStartKeys) && tlSkeleton.badStartKeys.length === 0,
+    JSON.stringify(tlSkeleton.badStartKeys)
+  );
+  check(
+    '同一粒度下 cycle 唯一',
+    Array.isArray(tlSkeleton.cycles) && tlSkeleton.cycles.length === 1,
+    JSON.stringify(tlSkeleton.cycles)
+  );
+  check('今天恰好标记一格', tlSkeleton.todayCount === 1, `${tlSkeleton.todayCount} 格`);
+  check('过去/未来标记都存在', tlSkeleton.pastCount > 0 && tlSkeleton.futureCount > 0, `past=${tlSkeleton.pastCount} future=${tlSkeleton.futureCount}`);
+  check('每格都有新建按钮', tlSkeleton.addCount === tlSkeleton.bucketCount, `${tlSkeleton.addCount}/${tlSkeleton.bucketCount}`);
+  check('时间线汇总读到了计划数', tlSkeleton.summaryNodes !== null, `node-count=${tlSkeleton.summaryNodes}`);
+
+  // 5.5.3 计划真的出现在时间轴上（种子数据里有周/月节点）
+  const tlNodes = await evalJs(
+    `const nodes = Array.from(document.querySelectorAll('[data-testid="timeline-node"]'));
+     const bucketsWithNodes = Array.from(document.querySelectorAll('[data-testid="timeline-bucket"]'))
+       .filter(b => Number(b.getAttribute('data-bucket-count')) > 0);
+     return {
+       nodeCount: nodes.length,
+       bucketWithNodes: bucketsWithNodes.length,
+       tones: [...new Set(nodes.map(n => n.getAttribute('data-tone')))],
+       cycles: [...new Set(nodes.map(n => n.getAttribute('data-node-cycle')))],
+       // 每张卡都必须带进度属性
+       missingProgress: nodes.filter(n => n.getAttribute('data-node-progress') === null).length,
+       // 卡片文案不能是空标题
+       emptyTitles: nodes.filter(n => !(n.textContent || '').trim()).length,
+     };`
+  );
+  check('时间线上渲染出计划卡片', tlNodes.nodeCount > 0, `${tlNodes.nodeCount} 张`);
+  check('有计划的格子数 > 0', tlNodes.bucketWithNodes > 0, `${tlNodes.bucketWithNodes} 格`);
+  check('卡片都带进度属性', tlNodes.missingProgress === 0, `${tlNodes.missingProgress} 张缺失`);
+  check('卡片都有可见文案', tlNodes.emptyTitles === 0, `${tlNodes.emptyTitles} 张空卡`);
+  check(
+    '状态色板生效（不是全同一个色）',
+    Array.isArray(tlNodes.tones) && tlNodes.tones.length >= 1,
+    JSON.stringify(tlNodes.tones)
+  );
+
+  // 5.5.4 跨度切换：换到「今年」应变成按月，格子数 12
+  const tlYear = await evalJs(
+    `const yearTab = document.querySelector('[data-testid="timeline-span-tab"][data-span="year"]');
+     if (!yearTab) return { ok: false };
+     yearTab.click();
+     await new Promise(r => setTimeout(r, 500));
+     const root = document.querySelector('[data-testid="plan-timeline"]');
+     const buckets = Array.from(document.querySelectorAll('[data-testid="timeline-bucket"]'));
+     return {
+       ok: true,
+       span: root.getAttribute('data-span'),
+       granularity: root.getAttribute('data-granularity'),
+       count: buckets.length,
+       cycles: [...new Set(buckets.map(b => b.getAttribute('data-bucket-cycle')))],
+       // 按月粒度的 periodKey 是 YYYY-MM
+       periods: [...new Set(buckets.map(b => b.getAttribute('data-bucket-start')))].length,
+     };`
+  );
+  check('可切到「今年」跨度', tlYear.ok === true && tlYear.span === 'year', JSON.stringify(tlYear));
+  check(
+    '年跨度自动降级为按月',
+    tlYear.granularity === 'month' && Array.isArray(tlYear.cycles) && tlYear.cycles[0] === 'month',
+    JSON.stringify(tlYear)
+  );
+  check('年视图 12 格', tlYear.count === 12, `${tlYear.count} 格`);
+
+  // 5.5.5 切到「本月」应是按天，30 格
+  const tlMonth = await evalJs(
+    `const mTab = document.querySelector('[data-testid="timeline-span-tab"][data-span="month"]');
+     if (!mTab) return { ok: false };
+     mTab.click();
+     await new Promise(r => setTimeout(r, 500));
+     const root = document.querySelector('[data-testid="plan-timeline"]');
+     const buckets = Array.from(document.querySelectorAll('[data-testid="timeline-bucket"]'));
+     const now = new Date();
+     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+     return {
+       ok: true,
+       span: root.getAttribute('data-span'),
+       granularity: root.getAttribute('data-granularity'),
+       count: buckets.length,
+       expected: daysInMonth,
+       cycle: buckets[0] ? buckets[0].getAttribute('data-bucket-cycle') : null,
+     };`
+  );
+  check('可切到「本月」跨度', tlMonth.ok === true && tlMonth.span === 'month');
+  check('月跨度按天渲染', tlMonth.granularity === 'day' && tlMonth.cycle === 'day', JSON.stringify(tlMonth));
+  check('月视图天数 = 当月天数', tlMonth.count === tlMonth.expected, `${tlMonth.count} vs ${tlMonth.expected}`);
+
+  // 5.5.6 前后翻页：翻一个月后刻度应整体位移
+  const tlNav = await evalJs(
+    `const buckets = () => Array.from(document.querySelectorAll('[data-testid="timeline-bucket"]'));
+     const before = buckets()[0].getAttribute('data-bucket-start');
+     const nextBtn = document.querySelector('[data-testid="timeline-next"]');
+     if (!nextBtn) return { ok: false };
+     nextBtn.click();
+     await new Promise(r => setTimeout(r, 500));
+     const after = buckets()[0].getAttribute('data-bucket-start');
+     const todayBtn = document.querySelector('[data-testid="timeline-today"]');
+     if (todayBtn) { todayBtn.click(); await new Promise(r => setTimeout(r, 500)); }
+     const backToday = buckets()[0].getAttribute('data-bucket-start');
+     return { ok: true, before, after, backToday,
+       moved: before !== after,
+       restored: before === backToday };`
+  );
+  check('可翻到下一段', tlNav.ok === true && tlNav.moved === true, `${tlNav.before} → ${tlNav.after}`);
+  check('「回到今天」可复位', tlNav.restored === true, `${tlNav.backToday}`);
+
+  // 5.5.7 点「+」能打开新建弹窗，且周期键来自时间线格子
+  const tlAdd = await evalJs(
+    `// 回到本月，找一格，读它的 data-add-period
+     const mTab = document.querySelector('[data-testid="timeline-span-tab"][data-span="month"]');
+     if (mTab) { mTab.click(); await new Promise(r => setTimeout(r, 500)); }
+     const btn = document.querySelector('[data-testid="timeline-add"]');
+     if (!btn) return { ok: false, reason: 'no add button', bucketCount: document.querySelectorAll('[data-testid="timeline-bucket"]').length };
+     const expectPeriod = btn.getAttribute('data-add-period');
+     const expectCycle = btn.getAttribute('data-add-cycle');
+     btn.click();
+     await new Promise(r => setTimeout(r, 700));
+     const text = document.body.innerText;
+     // 弹窗应以"新建 · X节点"作为标题，且含"节点标题"输入项
+     return {
+       ok: true,
+       expectPeriod, expectCycle,
+       opened: /新建\\s*·/.test(text),
+       hasCycleLabel: /节点/.test(text),
+       hasTitleField: /标题|计划内容/.test(text),
+     };`
+  );
+  check('时间线格子可点「+」新建', tlAdd.ok === true, JSON.stringify(tlAdd).slice(0, 200));
+  check(
+    '「+」携带了该格的周期键',
+    !!tlAdd.expectPeriod && /^\d{4}-\d{2}-\d{2}$/.test(tlAdd.expectPeriod),
+    tlAdd.expectPeriod
+  );
+  check('「+」携带了对应周期层级', tlAdd.expectCycle === 'day', tlAdd.expectCycle);
+  check('点「+」弹出新建对话框', tlAdd.opened === true, JSON.stringify(tlAdd).slice(0, 200));
+
+  // 关掉弹窗：点面板里的关闭按钮（右键弹窗头部那个 X），兜底发 Esc
+  const closeDlg = await evalJs(
+    `// 新建弹窗是 fixed 覆盖层；找到覆盖层里最靠右上的按钮当关闭键
+     const overlay = Array.from(document.querySelectorAll('div')).find(
+       d => (d.className || '').includes('fixed') && (d.className || '').includes('inset-0')
+     );
+     let closed = false;
+     if (overlay) {
+       const btns = Array.from(overlay.querySelectorAll('button'));
+       // 关闭按钮通常是头部最右那个：无文字或只有一个 svg
+       const cand = btns.find(b => !b.textContent.trim()) || btns[btns.length - 1];
+       if (cand) { cand.click(); closed = true; }
+     }
+     await new Promise(r => setTimeout(r, 600));
+     const stillOpen = /新建\\s*·/.test(document.body.innerText);
+     return { clicked: closed, stillOpen };`
+  );
+  check('新建弹窗可关闭', closeDlg.clicked === true && closeDlg.stillOpen === false, JSON.stringify(closeDlg));
+
+  // 5.5.8 切回层级树，原功能不受影响
+  const backToList = await evalJs(
+    `const lsBtn = document.querySelector('[data-testid="plan-view-list"]');
+     if (!lsBtn) return { ok: false };
+     lsBtn.click();
+     await new Promise(r => setTimeout(r, 700));
+     const sw = document.querySelector('[data-testid="plan-view-switch"]');
+     return {
+       ok: true,
+       view: sw ? sw.getAttribute('data-view') : null,
+       hasTimeline: !!document.querySelector('[data-testid="plan-timeline"]'),
+       hasTree: document.querySelectorAll('[data-testid="plan-node"]').length > 0,
+       nodeCount: document.querySelectorAll('[data-testid="plan-node"]').length,
+       cycleTabs: document.querySelectorAll('[data-testid="plan-cycle-tab"]').length,
+     };`
+  );
+  check('可切回层级树视图', backToList.ok === true && backToList.view === 'list', JSON.stringify(backToList));
+  check('切回后时间线卸载', backToList.hasTimeline === false);
+  check('切回后层级树正常渲染', backToList.hasTree === true, `${backToList.nodeCount} 个节点`);
+  check('切回后层级 Tab 仍在', backToList.cycleTabs === 5, `${backToList.cycleTabs} 个`);
 
   // ============ 组 6：持久化 ============
   console.log('\n════════ 组 6/6：数据持久化 ════════');

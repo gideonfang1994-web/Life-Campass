@@ -27,6 +27,7 @@ import {
 } from '../utils/planReconciliation';
 import { DIMENSIONS_CONFIG, CATEGORIES } from '../utils/categories';
 import { requestSmartBreakdown } from '../services/api';
+import { PlanTimelineView, TimelineHint } from './PlanTimelineView';
 import {
   Layers,
   Target,
@@ -47,6 +48,8 @@ import {
   ShieldAlert,
   Trophy,
   X,
+  CalendarDays,
+  ListTree,
 } from 'lucide-react';
 
 interface Props {
@@ -133,8 +136,17 @@ export const PlanBoardView: React.FC<Props> = ({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createParentId, setCreateParentId] = useState<string | undefined>();
   const [createCycle, setCreateCycle] = useState<PlanCycle>('day');
+  /** 时间线上点「+」时指定的周期键；为空则按当前视图周期 */
+  const [createPeriodKey, setCreatePeriodKey] = useState<string | undefined>();
   const [showIssues, setShowIssues] = useState(false);
   const [breakingDownId, setBreakingDownId] = useState<string | null>(null);
+
+  /**
+   * 视图模式：树形列表 / 时间线。
+   * 默认给时间线——用户的核心诉求是"一目了然看到什么时候要做啥"，
+   * 层级树更适合追勾稽细节，进来先看时间线更符合直觉。
+   */
+  const [viewMode, setViewMode] = useState<'list' | 'timeline'>('timeline');
 
   // 勾稽后的节点树（父节点进度由子节点加权汇总）
   const reconciled = useMemo(() => reconcileTree(nodes), [nodes]);
@@ -324,7 +336,43 @@ export const PlanBoardView: React.FC<Props> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* 视图模式切换：时间线 / 层级树 */}
+          <div
+            data-testid="plan-view-switch"
+            data-view={viewMode}
+            className="flex items-center gap-0.5 p-0.5 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+          >
+            <button
+              type="button"
+              data-testid="plan-view-timeline"
+              data-active={viewMode === 'timeline' ? 'true' : 'false'}
+              onClick={() => setViewMode('timeline')}
+              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+                viewMode === 'timeline'
+                  ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-white shadow-sm'
+                  : 'text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200'
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              时间线
+            </button>
+            <button
+              type="button"
+              data-testid="plan-view-list"
+              data-active={viewMode === 'list' ? 'true' : 'false'}
+              onClick={() => setViewMode('list')}
+              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+                viewMode === 'list'
+                  ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-white shadow-sm'
+                  : 'text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200'
+              }`}
+            >
+              <ListTree className="w-3.5 h-3.5" />
+              层级树
+            </button>
+          </div>
+
           <button
             type="button"
             data-testid="plan-issue-toggle"
@@ -348,6 +396,7 @@ export const PlanBoardView: React.FC<Props> = ({
             onClick={() => {
               setCreateParentId(undefined);
               setCreateCycle(activeCycle);
+              setCreatePeriodKey(undefined);
               setIsCreateOpen(true);
             }}
             className="px-3 py-2 rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 font-bold text-xs transition flex items-center gap-1.5 shadow-sm hover:opacity-90"
@@ -440,6 +489,29 @@ export const PlanBoardView: React.FC<Props> = ({
           })}
         </div>
 
+        {/* ===== 时间线视图 ===== */}
+        {viewMode === 'timeline' && (
+          <>
+            <div className="px-3 sm:px-4 pt-3">
+              <TimelineHint activeCycle={activeCycle} />
+            </div>
+            <PlanTimelineView
+              nodes={reconciled}
+              activeCycle={activeCycle}
+              onEditNode={(id) => setEditingNode(nodeMap.get(id) || null)}
+              onCreateAt={(cycle, periodKey) => {
+                setCreateParentId(undefined);
+                setCreateCycle(cycle);
+                setCreatePeriodKey(periodKey);
+                setIsCreateOpen(true);
+              }}
+            />
+          </>
+        )}
+
+        {/* ===== 层级树视图 ===== */}
+        {viewMode === 'list' && (
+          <>
         {/* 周期导航 + 汇总条 */}
         <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -559,6 +631,8 @@ export const PlanBoardView: React.FC<Props> = ({
             />
           ))}
         </div>
+          </>
+        )}
       </div>
 
       {/* ============ 勾稽诊断面板 ============ */}
@@ -674,7 +748,7 @@ export const PlanBoardView: React.FC<Props> = ({
             createParentId
               ? getParentPeriodKeyFor(nodeMap.get(createParentId), createCycle) ||
                 getPeriodKey(today, createCycle)
-              : getPeriodKey(today, createCycle)
+              : createPeriodKey || getPeriodKey(today, createCycle)
           }
           parentId={createParentId}
           parentTitle={
@@ -682,7 +756,10 @@ export const PlanBoardView: React.FC<Props> = ({
           }
           projects={projects}
           acceleratedGoals={acceleratedGoals}
-          onClose={() => setIsCreateOpen(false)}
+          onClose={() => {
+            setIsCreateOpen(false);
+            setCreatePeriodKey(undefined);
+          }}
           onCreate={(node) => {
             if (createParentId) {
               const parent = nodeMap.get(createParentId);
@@ -703,6 +780,7 @@ export const PlanBoardView: React.FC<Props> = ({
               onUpdateNodes([...nodes, node]);
             }
             setIsCreateOpen(false);
+            setCreatePeriodKey(undefined);
             if (createParentId) setExpandedIds((prev) => new Set([...prev, createParentId]));
           }}
         />
@@ -1129,7 +1207,13 @@ const PlanNodeEditor: React.FC<{
     'w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white focus:outline-none focus:border-stone-400 dark:focus:border-stone-500';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm overflow-y-auto">
+    <div
+      data-testid="plan-edit-modal"
+      data-edit-node-id={node.id}
+      data-edit-cycle={node.cycle}
+      data-edit-period={node.periodKey}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm overflow-y-auto"
+    >
       <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-2xl w-full max-w-2xl overflow-hidden my-8">
         <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
@@ -1447,7 +1531,12 @@ const PlanNodeCreateModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm overflow-y-auto">
+    <div
+      data-testid="plan-create-modal"
+      data-create-cycle={cycle}
+      data-create-period={periodKey}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm overflow-y-auto"
+    >
       <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-2xl w-full max-w-xl overflow-hidden my-8">
         <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
@@ -1458,6 +1547,7 @@ const PlanNodeCreateModal: React.FC<{
           </div>
           <button
             type="button"
+            data-testid="plan-create-close"
             onClick={onClose}
             className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 shrink-0"
           >
@@ -1481,6 +1571,7 @@ const PlanNodeCreateModal: React.FC<{
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              data-testid="plan-create-title"
               className={inputCls}
               autoFocus
               placeholder="例：完成推介视频成片并在 3 个平台发布"
@@ -1616,6 +1707,7 @@ const PlanNodeCreateModal: React.FC<{
           </button>
           <button
             type="button"
+            data-testid="plan-create-submit"
             onClick={handleCreate}
             className="px-4 py-2 rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 text-xs font-bold transition hover:opacity-90 shadow-sm"
           >
