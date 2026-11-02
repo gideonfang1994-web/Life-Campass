@@ -2,7 +2,8 @@
  * 多源健康数据导入解析器
  *
  * ============================ 现实边界（勿虚构） ============================
- *  - 薄荷健康【没有】开放平台 / 开发者 API，只能 App 内导出 Excel/CSV；
+ *  - 薄荷健康【有】官方开放平台 API（ai.boohee.com/docs），见 booheeOpenApi.ts；
+ *    但它没有「读取我 App 历史记录」的接口，所以 App 老数据仍需导出文件导入；
  *  - Apple HealthKit 是【纯设备端】框架，无服务端 API，浏览器读不到；
  *    只能靠「健康 App → 导出数据 → export.xml」落地；
  *  - 华为运动健康 / 小米 Zepp / Android Health Connect 支持导出 CSV；
@@ -1334,7 +1335,7 @@ export const SOURCE_GUIDE: Record<HealthDataSource, string> = {
   apple_health:
     'iPhone：健康 App → 右上角头像 → 导出所有健康数据 → 分享 → 保存 export.zip，解压后上传 export.xml。',
   boohee:
-    '薄荷健康 App：我的 → 右上角设置 → 导出数据 → 选择时间范围（单次最多约 90 天）→ 得到 Excel/CSV 后上传。',
+    '薄荷健康 App：我的 → 右上角设置 → 导出数据 → 选择时间范围（单次最多约 90 天）→ 得到 Excel/CSV 后上传。（想要「不用导出文件」就用「薄荷直连」：填开放平台 API Key 直接同步。）',
   huawei: '华为运动健康 App：我的 → 设备/运动健康 → 数据管理 → 导出 CSV 后上传。',
   xiaomi: '小米运动健康 App：我的 → 设置 → 账号与安全 → 导出数据（CSV/Excel）后上传。',
   wechat_run:

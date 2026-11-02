@@ -41,6 +41,7 @@ import {
   CalorieBalance,
   LinePoint,
 } from './HealthCharts';
+import { BooheeSyncPanel } from './BooheeSyncPanel';
 import {
   Moon,
   Activity,
@@ -65,6 +66,7 @@ import {
   HeartPulse,
   Footprints,
   Flame,
+  RefreshCw,
 } from 'lucide-react';
 
 interface Props {
@@ -135,6 +137,7 @@ export const HealthMetricsView: React.FC<Props> = ({
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showGoals, setShowGoals] = useState(false);
+  const [showBoohee, setShowBoohee] = useState(false);
   const [importing, setImporting] = useState(false);
   const [lastResult, setLastResult] = useState<HealthImportResult | null>(null);
   const [lastError, setLastError] = useState<string>('');
@@ -277,6 +280,48 @@ export const HealthMetricsView: React.FC<Props> = ({
       }
     },
     [entries, onUpdateEntries, onAddImportBatch]
+  );
+
+  // ===== 薄荷开放平台直连 =====
+  const handleBooheeEntries = useCallback(
+    (incoming: HealthDailyEntry[]) => {
+      const { merged, added, mergedCount } = mergeImportedEntries(entries, incoming);
+      onUpdateEntries(merged);
+      setLastError('');
+      setLastResult(
+        buildImportResult(
+          {
+            entries: incoming,
+            detectedSource: 'boohee',
+            detectedFields: [...new Set(incoming.flatMap((e) => Object.keys(e)))].filter(
+              (k) =>
+                !['id', 'date', 'source', 'createdAt', 'updatedAt'].includes(k)
+            ),
+            skipped: [],
+            dateFrom: incoming[0]?.date,
+            dateTo: incoming[incoming.length - 1]?.date,
+          },
+          added,
+          mergedCount,
+          '薄荷开放平台直连'
+        )
+      );
+    },
+    [entries, onUpdateEntries]
+  );
+
+  const handleBooheeBatch = useCallback(
+    (info: { source: 'boohee'; fileName: string; imported: number; merged: number }) => {
+      onAddImportBatch({
+        batchId: `hb-boohee-${Date.now().toString(36)}`,
+        source: info.source,
+        fileName: info.fileName,
+        imported: info.imported,
+        merged: info.merged,
+        importedAt: new Date().toISOString(),
+      });
+    },
+    [onAddImportBatch]
   );
 
   // ===== 图表数据 =====
@@ -427,6 +472,15 @@ export const HealthMetricsView: React.FC<Props> = ({
           </button>
           <button
             type="button"
+            data-testid="health-open-boohee"
+            onClick={() => setShowBoohee((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            薄荷直连
+          </button>
+          <button
+            type="button"
             data-testid="health-open-goals"
             onClick={() => setShowGoals((v) => !v)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-xs font-medium transition hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
@@ -519,13 +573,19 @@ export const HealthMetricsView: React.FC<Props> = ({
           <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-[11px] leading-relaxed text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
             <div className="mb-1 flex items-center gap-1.5 font-semibold">
               <Info className="h-3.5 w-3.5" />
-              关于「直接连薄荷健康 / Apple 健康」的真实情况
+              文件导入 vs API 直连，各能干什么
             </div>
             <p>
-              薄荷健康没有开放平台或开发者 API，Apple HealthKit 是纯设备端框架、
-              浏览器也读不到 —— 所以不存在「点一下就自动同步」的直连通道。
-              现实可行的做法是：在对应 App 里导出文件，再在这里导入。
-              导入后所有分析都在你本机浏览器完成，数据不出本地。
+              <b>薄荷健康有官方开放平台 API</b>，点上面的「薄荷直连」填个 API Key
+              就能同步，不需要导出文件。但它读的是「开放平台数据空间」里的记录，
+              也就是应用自己写进去的数据 —— 薄荷没开放读取 App 历史数据的接口。
+            </p>
+            <p className="mt-1">
+              <b>Apple 健康</b> 是纯设备端框架，浏览器读不到，得从健康 App 导出
+              export.xml 再上传。<b>微信运动</b> 只能在小程序端拿到。
+            </p>
+            <p className="mt-1">
+              所有解析与分析都在你本机浏览器完成，数据不出本地。
             </p>
           </div>
 
@@ -664,6 +724,14 @@ export const HealthMetricsView: React.FC<Props> = ({
             </div>
           )}
         </section>
+      )}
+
+      {/* ================= 薄荷开放平台直连 ================= */}
+      {showBoohee && (
+        <BooheeSyncPanel
+          onApplyEntries={handleBooheeEntries}
+          onRegisterBatch={handleBooheeBatch}
+        />
       )}
 
       {/* ================= 手动记录表单 ================= */}

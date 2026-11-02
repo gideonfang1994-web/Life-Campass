@@ -257,14 +257,20 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   check('趋势徽章存在', page.hasTrendBadge === true);
   check('四维评分环渲染 4 个', page.rings === 4, `${page.rings} 个`);
 
-  // 诚实性检查：页面必须说明薄荷没有 API
+  // 诚实性检查（2026-11 更新）：薄荷【有】开放平台，但只能读开放平台数据空间；
+  // Apple 健康（HealthKit）仍是纯设备端框架，浏览器读不到。
   check(
-    '页面说明薄荷无开放平台',
-    /薄荷/.test(page.text) && /(没有开放平台|无开放平台|没有开发者|无法直连)/.test(page.text)
+    '页面说明薄荷有开放平台 API',
+    /薄荷/.test(page.text) && /(开放平台|开发者 API|API Key)/.test(page.text)
+  );
+  check(
+    '页面说明薄荷只能读开放平台数据空间',
+    /薄荷/.test(page.text) &&
+      /(开放平台数据空间|数据空间|没开放读取 App 历史数据|没有开放读取 App 历史)/.test(page.text)
   );
   check(
     '页面说明 HealthKit 浏览器读不到',
-    /HealthKit/.test(page.text) && /(浏览器|设备端|读不到)/.test(page.text)
+    /(HealthKit|Apple 健康)/.test(page.text) && /(浏览器|设备端|读不到)/.test(page.text)
   );
 
   // ============ 组 3：种子数据 + 引擎/界面一致性 ============
