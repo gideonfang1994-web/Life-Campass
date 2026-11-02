@@ -81,6 +81,19 @@ async function evalJs(expr) {
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lc-migrate-'));
 const port = 9700 + Math.floor(Math.random() * 200);
 
+// Edge 启动时会去读 AppData 下的 TokenBroker/缓存目录，沙箱常拦这些路径。
+// 把 LOCALAPPDATA / APPDATA / USERPROFILE 重定向到临时目录，绕开真实用户目录。
+const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'lc-home-'));
+fs.mkdirSync(path.join(fakeHome, 'Local'), { recursive: true });
+fs.mkdirSync(path.join(fakeHome, 'Roaming'), { recursive: true });
+const childEnv = {
+  ...process.env,
+  LOCALAPPDATA: path.join(fakeHome, 'Local'),
+  APPDATA: path.join(fakeHome, 'Roaming'),
+  USERPROFILE: fakeHome,
+  HOME: fakeHome,
+};
+
 const child = spawn(
   BROWSER,
   [
@@ -90,18 +103,24 @@ const child = spawn(
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-extensions',
+    '--disable-sync',
+    '--disable-background-networking',
+    '--disable-component-update',
+    '--disable-features=msEdgeSync,EdgeIdentityConsistency,msImplicitSignin',
+    '--no-proxy-server',
     '--allow-file-access-from-files',
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profileDir}`,
     '--window-size=1440,1000',
     'about:blank',
   ],
-  { stdio: 'ignore', detached: false }
+  { stdio: 'ignore', detached: false, env: childEnv }
 );
 
 function cleanup() {
   try { child.kill(); } catch {}
   try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch {}
+  try { fs.rmSync(fakeHome, { recursive: true, force: true }); } catch {}
 }
 process.on('exit', cleanup);
 process.on('SIGINT', () => { cleanup(); process.exit(1); });

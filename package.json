@@ -16,7 +16,7 @@
     "test:seed-migration": "node tools/test-plan-seed-migration.mjs",
     "test:health": "node tools/test-health.mjs",
     "e2e:plan": "node tools/e2e-plan-board.mjs",
-    "e2e:migration": "node tools/e2e-standalone-migration.mjs",
+    "e2e:migration": "node tools/e2e-standalone-migration.mjs ..",
     "e2e:health": "node tools/e2e-health.mjs"
   },
   "dependencies": {
