@@ -620,6 +620,56 @@ function check(name, cond, detail = '') {
   );
   check('刷新后计划数据仍在', afterReload.hasW1 === true, `${afterReload.count} 个节点`);
 
+  // ============ 组 6.5：旧版本数据自动迁移 ============
+  // 这是「代码更新了但用户浏览器里还是旧数据」的唯一防线。
+  // 写入一份写死周期键的旧数据 → 刷新 → App 应自动迁移到当前周期。
+  console.log('\n════════ 组 6.5/6：旧数据版本迁移 ════════');
+  await evalJs(
+    `const raw = localStorage.getItem('life_coach_plan_nodes');
+     const nodes = raw ? JSON.parse(raw) : [];
+     // 伪造一份"上一版种子"：周期键写死为历史值
+     const old = nodes.map(n => ({
+       ...n,
+       periodKey:
+         n.cycle === 'year' ? '2026'
+         : n.cycle === 'quarter' ? '2026-Q4'
+         : n.cycle === 'month' ? '2026-10'
+         : n.cycle === 'week' ? '2026-W44'
+         : '2026-10-31',
+     }));
+     localStorage.setItem('life_coach_plan_nodes', JSON.stringify(old));
+     // 版本号置旧值，触发迁移
+     localStorage.setItem('life_coach_plan_seed_version', '1');
+     return { count: old.length };`
+  );
+  await send('Page.reload', { ignoreCache: false });
+  await new Promise((r) => setTimeout(r, 2500));
+  const migrated = await evalJs(
+    `const raw = localStorage.getItem('life_coach_plan_nodes');
+     const nodes = raw ? JSON.parse(raw) : [];
+     const ver = localStorage.getItem('life_coach_plan_seed_version');
+     // 读当前页面上渲染出的月层节点周期键，与 localStorage 对比
+     const monthKeys = nodes.filter(n => n.cycle === 'month').map(n => n.periodKey);
+     return {
+       count: nodes.length,
+       version: ver,
+       monthKeys,
+       // 旧种子写死的月键必须是 2026-10（历史值）
+       legacyMonthCount: monthKeys.filter(k => k === '2026-10').length,
+     };`
+  );
+  // 判据：旧种子的月层键**全是** 2026-10（写死的历史值）；
+  // 迁移后应变成当前种子的分布（闲置周月 / 本月 / 下月 / 本周月），
+  // 即至少出现不止一种月键，且不再是清一色的 2026-10。
+  const monthKeys = [...new Set(migrated.monthKeys)].sort();
+  check(
+    '旧数据的月层周期键已按当前周期重建',
+    monthKeys.length > 1 && !monthKeys.every((k) => k === '2026-10'),
+    `实际 ${monthKeys.join(',')}`
+  );
+  check('版本号已更新为最新', migrated.version === '2', `版本 ${migrated.version}`);
+  check('迁移后节点数不变', migrated.count > 0, `${migrated.count} 个节点`);
+
   // 截图
   const shotDir = path.join(ROOT, 'shots');
   fs.mkdirSync(shotDir, { recursive: true });

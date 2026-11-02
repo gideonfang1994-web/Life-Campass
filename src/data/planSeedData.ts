@@ -815,3 +815,18 @@ alignGeneratedProgress(
 );
 
 export const INITIAL_PLAN_NODES: PlanNode[] = ALL_NODES;
+
+/**
+ * 种子数据版本号。
+ *
+ * 用途：浏览器 localStorage 里存的是「上一版种子」。改了种子的
+ * 结构或周期锚点后，旧数据不会自动跟着变 —— 用户看到的还是
+ * 上个月的周期键（比如 2026-W44），计划板一片空白。
+ *
+ * 版本号变了 → App 启动时自动把旧数据迁移到新种子。
+ * 改动种子结构时**必须**把这里的数字 +1。
+ */
+export const PLAN_SEED_VERSION = 2;
+
+/** 旧版本号的 localStorage 键 */
+export const PLAN_SEED_VERSION_KEY = 'life_coach_plan_seed_version';

@@ -13,8 +13,10 @@
     "build:standalone": "node build-standalone.mjs",
     "test:plan": "node tools/test-plan-reconciliation.mjs",
     "test:seed-dates": "node tools/simulate-seed-dates.mjs 2026-01-01 730",
+    "test:seed-migration": "node tools/test-plan-seed-migration.mjs",
     "test:health": "node tools/test-health.mjs",
     "e2e:plan": "node tools/e2e-plan-board.mjs",
+    "e2e:migration": "node tools/e2e-standalone-migration.mjs",
     "e2e:health": "node tools/e2e-health.mjs"
   },
   "dependencies": {

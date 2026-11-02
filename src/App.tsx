@@ -20,7 +20,8 @@ import {
   INITIAL_PLAN_ACTUAL_RECORDS,
   INITIAL_ACCELERATED_GOALS,
 } from './data/initialData';
-import { INITIAL_PLAN_NODES } from './data/planSeedData';
+import { INITIAL_PLAN_NODES, PLAN_SEED_VERSION_KEY } from './data/planSeedData';
+import { migratePlanNodes, persistPlanSeedVersion } from './utils/planSeedMigration';
 import { INITIAL_HEALTH_ENTRIES } from './data/healthSeedData';
 import { Header, ActiveTab } from './components/Header';
 import { TodayOneThingView } from './components/TodayOneThingView';
@@ -116,16 +117,15 @@ export default function App() {
   });
 
   // 日/周/月/季/年 五级计划体系
+  // 读取时做版本迁移：旧数据里的写死周期键会被换成当前周期的骨架
   const [planNodes, setPlanNodes] = useState<PlanNode[]>(() => {
     const saved = localStorage.getItem('life_coach_plan_nodes');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
+    const storedVersion = localStorage.getItem(PLAN_SEED_VERSION_KEY);
+    const result = migratePlanNodes(saved, storedVersion);
+    if (result.migrated) {
+      persistPlanSeedVersion();
     }
-    return INITIAL_PLAN_NODES;
+    return result.nodes;
   });
 
   // 量化健康：每日睡眠 / 运动 / 饮食 / 身体数据
@@ -428,7 +428,10 @@ export default function App() {
       setAcceleratedGoals(parsed.acceleratedGoals);
     }
     if (parsed.planNodes && Array.isArray(parsed.planNodes)) {
-      setPlanNodes(parsed.planNodes);
+      // 导入的备份可能来自旧版本（周期键写死），同样要过迁移
+      const imported = migratePlanNodes(JSON.stringify(parsed.planNodes), null);
+      setPlanNodes(imported.nodes);
+      persistPlanSeedVersion();
     }
     if (parsed.healthEntries && Array.isArray(parsed.healthEntries)) {
       setHealthEntries(parsed.healthEntries);
@@ -450,6 +453,7 @@ export default function App() {
     setPlanActualRecords(INITIAL_PLAN_ACTUAL_RECORDS);
     setAcceleratedGoals(INITIAL_ACCELERATED_GOALS);
     setPlanNodes(INITIAL_PLAN_NODES);
+    persistPlanSeedVersion();
     setHealthEntries(INITIAL_HEALTH_ENTRIES);
     setHealthGoals(DEFAULT_HEALTH_GOALS);
     setHealthImportBatches([]);
