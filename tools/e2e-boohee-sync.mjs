@@ -392,6 +392,35 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   `);
   check('无效 Key 给出可读报错', String(errRes.text).includes('API Key'), errRes.text);
 
+  // ============ 截图：面板 UI 渲染确认 ============
+  try {
+    // 只截视口（不用 captureBeyondViewport）：长页面全量合成会压缩失真、串内容
+    await send('Emulation.setDeviceMetricsOverride', {
+      width: 1280, height: 900, deviceScaleFactor: 1, mobile: false,
+    });
+    await evalJs(`
+      const panel = document.querySelector('[data-testid="boohee-sync-panel"]');
+      if (panel) {
+        panel.scrollIntoView({ block: 'center' });
+        // 面板可能是懒渲染，等一帧
+        await new Promise(r => setTimeout(r, 600));
+      }
+      return {
+        found: !!panel,
+        title: document.title,
+        hasBoohee: document.body.innerText.includes('薄荷'),
+      };
+    `);
+    const shot = await send('Page.captureScreenshot', { format: 'png' });
+    const outDir = path.join(ROOT, 'shots');
+    fs.mkdirSync(outDir, { recursive: true });
+    const shotPath = path.join(outDir, '22-boohee-sync-panel.png');
+    fs.writeFileSync(shotPath, Buffer.from(shot.data, 'base64'));
+    console.log('\n📸 薄荷面板截图：' + shotPath);
+  } catch (e) {
+    console.log('\n⚠️ 截图跳过：' + (e?.message || e));
+  }
+
   // ============ 汇总 ============
   console.log('\n' + '='.repeat(56));
   console.log(`通过 ${pass} / 失败 ${fail} / 合计 ${pass + fail}`);
